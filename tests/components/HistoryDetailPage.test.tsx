@@ -125,6 +125,23 @@ describe('HistoryDetailPage', () => {
     expect(screen.getByAltText('改造后的房间')).toBeTruthy();
   });
 
+  it.each([
+    ['PNG', 'image/png', '栖居-奶油风-效果图.png'],
+    ['JPEG', 'image/jpeg', '栖居-奶油风-效果图.jpg'],
+    ['WebP', 'image/webp', '栖居-奶油风-效果图.webp'],
+    ['未知 MIME', 'application/octet-stream', '栖居-奶油风-效果图.img'],
+  ])('%s 效果图下载扩展名与 Blob MIME 一致', async (_label, mimeType, expectedFilename) => {
+    // A fixed extension or unsafe unknown-MIME guess must fail this user-visible download contract.
+    const user = userEvent.setup();
+    const typedResult = new Blob(['typed-result'], { type: mimeType });
+    mockedGetHistoryRecord.mockResolvedValue({ ...record, resultImage: typedResult });
+    render(<HistoryDetailPage recordId="one" />);
+
+    await user.click(await screen.findByRole('button', { name: '下载效果图' }));
+
+    expect(mockedDownloadBlob).toHaveBeenCalledWith(typedResult, expectedFilename);
+  });
+
   it('记录不存在时显示可返回的空状态', async () => {
     const user = userEvent.setup();
     const onBack = vi.fn();
