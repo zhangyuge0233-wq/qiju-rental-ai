@@ -10,11 +10,11 @@ import { createMiniMaxProvider } from '../../server/providers/minimax.js';
 import { createJpegFixture, createPngFixture, createWebpFixture } from '../helpers/image-fixtures.js';
 
 const jpegBytes = createJpegFixture();
-const config: Pick<ServerConfig, 'minimaxApiKey' | 'minimaxApiUrl' | 'minimaxModel'> = {
+const config = {
   minimaxApiKey: 'fixture-secret',
   minimaxApiUrl: 'https://example.test/minimax',
   minimaxModel: 'image-01',
-};
+} satisfies Pick<ServerConfig, 'minimaxApiKey' | 'minimaxApiUrl' | 'minimaxModel'>;
 
 const input = (overrides: Partial<GenerationInput> = {}): GenerationInput => ({
   roomImage: createJpegFixture(),
@@ -30,12 +30,61 @@ const successResponse = (base64 = jpegBytes.toString('base64')) => new Response(
   base_resp: { status_code: 0, status_msg: 'success' },
 }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 
+const streamedResponse = (
+  chunks: Uint8Array[],
+  headers: HeadersInit = {},
+  closeAfterChunks = true,
+) => {
+  const cancel = vi.fn();
+  const response = new Response(new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const chunk of chunks) {
+        controller.enqueue(chunk);
+      }
+      if (closeAfterChunks) {
+        controller.close();
+      } else {
+        setTimeout(() => {
+          try {
+            controller.close();
+          } catch {
+            // The provider may have already cancelled this oversized stream.
+          }
+        }, 0);
+      }
+    },
+    cancel,
+  }), { status: 200, headers });
+
+  return { response, cancel };
+};
+
 const expectUpstreamError = async (operation: Promise<unknown>) => {
   await expect(operation).rejects.toMatchObject({
     code: 'UPSTREAM_ERROR',
     name: GenerationProviderError.name,
     message: 'AI 生成失败，请再次尝试',
   });
+};
+
+const expectSanitizedUpstreamError = async (operation: Promise<unknown>, privateDetails: string[]) => {
+  let error: unknown;
+  try {
+    await operation;
+  } catch (caught) {
+    error = caught;
+  }
+
+  expect(error).toMatchObject({
+    code: 'UPSTREAM_ERROR',
+    name: GenerationProviderError.name,
+    message: 'AI 生成失败，请再次尝试',
+  });
+  const publicError = error as Error;
+  const publicText = `${publicError.message}\n${publicError.stack}\n${JSON.stringify(error)}`;
+  for (const detail of privateDetails) {
+    expect(publicText).not.toContain(detail);
+  }
 };
 
 describe('createMiniMaxProvider', () => {
@@ -118,6 +167,51 @@ describe('createMiniMaxProvider', () => {
   ])('maps %s to UPSTREAM_ERROR', async (_label, response) => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(response);
     await expectUpstreamError(createMiniMaxProvider(config, fetchImpl).generate(input()));
+  });
+
+  it('maps a direct network rejection to a generic error without private details', async () => {
+    const privateDetails = [
+      config.minimaxApiKey,
+      '/private/credentials/minimax.json',
+      'opaque upstream diagnostic text',
+    ];
+    const fetchImpl = vi.fn<typeof fetch>().mockRejectedValue(new Error(privateDetails.join(' | ')));
+
+    await expectSanitizedUpstreamError(
+      createMiniMaxProvider(config, fetchImpl).generate(input()),
+      privateDetails,
+    );
+  });
+
+  it('maps malformed upstream JSON to the same generic public error', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response('{"data":', { status: 200 }));
+
+    await expectSanitizedUpstreamError(
+      createMiniMaxProvider(config, fetchImpl).generate(input()),
+      ['{"data":'],
+    );
+  });
+
+  it('rejects an upstream response declaring more than 25 MiB and cancels its body', async () => {
+    const { response, cancel } = streamedResponse(
+      [new TextEncoder().encode('{"private":"upstream response"}')],
+      { 'Content-Length': String(25 * 1024 * 1024 + 1) },
+    );
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(response);
+
+    await expectUpstreamError(createMiniMaxProvider(config, fetchImpl).generate(input()));
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
+  it('rejects a streamed upstream response exceeding 25 MiB and cancels its body', async () => {
+    const { response, cancel } = streamedResponse([
+      new Uint8Array(25 * 1024 * 1024),
+      new Uint8Array([123]),
+    ], {}, false);
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(response);
+
+    await expectUpstreamError(createMiniMaxProvider(config, fetchImpl).generate(input()));
+    expect(cancel).toHaveBeenCalledOnce();
   });
 
   it('maps timeout failures to UPSTREAM_ERROR after 120 seconds', async () => {

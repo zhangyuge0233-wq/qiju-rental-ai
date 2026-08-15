@@ -8,6 +8,8 @@ import {
 } from './generation-provider.js';
 
 const requestTimeoutMs = 120_000;
+const maxUpstreamResponseBytes = 25 * 1024 * 1024;
+const maxGeneratedImageBytes = 25 * 1024 * 1024;
 
 const buildPrompt = (input: GenerationInput) => [
   `生成一张${input.presetStyle ?? '温馨实用'}的年轻人出租屋室内设计效果图。`,
@@ -43,11 +45,55 @@ const decodeImageBase64 = (value: unknown): Buffer => {
   }
 
   const bytes = Buffer.from(value, 'base64');
-  if (!bytes.length) {
+  if (!bytes.length || bytes.length > maxGeneratedImageBytes) {
     throw new Error('Empty MiniMax image');
   }
 
   return bytes;
+};
+
+const cancelResponseBody = async (body: { cancel: () => Promise<void> } | null) => {
+  try {
+    await body?.cancel();
+  } catch {
+    // Preserve the generic upstream error even if cancellation itself fails.
+  }
+};
+
+const readUpstreamJson = async (response: Response): Promise<unknown> => {
+  const declaredLength = Number(response.headers.get('content-length'));
+  if (declaredLength > maxUpstreamResponseBytes) {
+    await cancelResponseBody(response.body);
+    throw new Error('MiniMax response exceeds size limit');
+  }
+
+  if (!response.body) {
+    throw new Error('Empty MiniMax response');
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+
+      totalBytes += value.byteLength;
+      if (totalBytes > maxUpstreamResponseBytes) {
+        await cancelResponseBody(reader);
+        throw new Error('MiniMax response exceeds size limit');
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return JSON.parse(Buffer.concat(chunks, totalBytes).toString('utf8'));
 };
 
 const readGeneratedImage = (payload: unknown): GeneratedImage => {
@@ -115,7 +161,7 @@ class MiniMaxProvider implements GenerationProvider {
         throw new Error('MiniMax generation failed');
       }
 
-      return readGeneratedImage(await response.json());
+      return readGeneratedImage(await readUpstreamJson(response));
     } catch {
       throw new GenerationProviderError('UPSTREAM_ERROR');
     } finally {
