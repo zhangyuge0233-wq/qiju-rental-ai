@@ -1,11 +1,13 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig({
+import { resolvePort, type Environment } from './server/config';
+
+export const createViteConfig = (environment: Environment) => ({
   plugins: [react()],
   server: {
     proxy: {
-      '/api': 'http://127.0.0.1:3000',
+      '/api': `http://127.0.0.1:${resolvePort(environment)}`,
     },
   },
   test: {
@@ -14,3 +16,8 @@ export default defineConfig({
     exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**'],
   },
 });
+
+export default defineConfig(({ mode }) => createViteConfig({
+  ...loadEnv(mode, process.cwd(), ''),
+  ...process.env,
+}));

@@ -11,12 +11,14 @@ const readOptionalValue = (value: string | undefined): string | undefined => {
   return trimmedValue || undefined;
 };
 
-export const createServerConfig = (environment: Environment): ServerConfig => {
+export const resolvePort = (environment: Environment): number => {
   const configuredPort = Number.parseInt(environment.PORT ?? '', 10);
 
-  return {
-    minimaxApiKey: readOptionalValue(environment.MINIMAX_API_KEY),
-    minimaxApiUrl: readOptionalValue(environment.MINIMAX_API_URL),
-    port: Number.isInteger(configuredPort) && configuredPort > 0 ? configuredPort : 3000,
-  };
+  return Number.isInteger(configuredPort) && configuredPort > 0 ? configuredPort : 3000;
 };
+
+export const createServerConfig = (environment: Environment): ServerConfig => ({
+  minimaxApiKey: readOptionalValue(environment.MINIMAX_API_KEY),
+  minimaxApiUrl: readOptionalValue(environment.MINIMAX_API_URL),
+  port: resolvePort(environment),
+});
