@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { createApp } from '../../server/app.js';
 import type { ServerConfig } from '../../server/config.js';
 import type { GenerationProvider } from '../../server/providers/generation-provider.js';
+import { createJpegFixture } from '../helpers/image-fixtures.js';
 
 describe('GET /api/health', () => {
   it('不返回密钥且报告 Wan 未配置', async () => {
@@ -15,7 +16,7 @@ describe('GET /api/health', () => {
 
   it('将 Wan 配置交给供应商工厂，并且接口不泄露密钥', async () => {
     const apiKey = 'fixture-wan-secret';
-    const jpegBytes = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
+    const jpegBytes = createJpegFixture();
     let receivedConfig: ServerConfig | undefined;
     const providerFactory = (config: ServerConfig): GenerationProvider => {
       receivedConfig = config;

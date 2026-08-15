@@ -1,4 +1,5 @@
 import type { ServerConfig } from '../config.js';
+import { isValidWanInputImage } from '../input-image.js';
 import {
   GenerationProviderError,
   type GeneratedImage,
@@ -11,24 +12,32 @@ const toDataUrl = (bytes: Buffer, mimeType: string) =>
 
 const oneImagePrompt = (input: GenerationInput) => (
   `以房间图为基础生成${input.presetStyle ?? '合适的室内设计'}效果图。`
-  + '保留墙体、门窗、地板、吊顶、透视和相机机位，仅调整家具和软装。'
+  + '保留墙体、门窗、地板、吊顶、透视和相机机位，仅调整家具、软装和灯光。'
 );
 
-const twoImagePrompt = '参考图用于提取设计风格；房间图用于保留空间结构。保留墙体、门窗、地板、吊顶、透视和相机机位，仅调整家具和软装。';
+const twoImagePrompt = (input: GenerationInput) => (
+  `第一张是参考图，第二张是房间图。设计方向采用${input.presetStyle ?? '参考图的设计风格'}，`
+  + '参考图在色彩、材质和氛围上优先；房间图用于保留空间结构。'
+  + '保留墙体、门窗、地板、吊顶、透视和相机机位，仅调整家具、软装和灯光。'
+);
 
 const requestTimeoutMs = 120_000;
+const maximumDownloadBytes = 25 * 1024 * 1024;
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null
 );
 
-const isHttpsUrl = (value: unknown): value is string => {
+const isTrustedResultUrl = (value: unknown): value is string => {
   if (typeof value !== 'string') {
     return false;
   }
 
   try {
-    return new URL(value).protocol === 'https:';
+    const url = new URL(value);
+    return url.protocol === 'https:'
+      && (url.port === '' || url.port === '443')
+      && (url.hostname === 'aliyuncs.com' || url.hostname.endsWith('.aliyuncs.com'));
   } catch {
     return false;
   }
@@ -44,13 +53,61 @@ const readImageUrl = (payload: unknown): string => {
       continue;
     }
 
-    const image = choice.message.content.find((item) => isRecord(item) && item.type === 'image');
-    if (isRecord(image) && isHttpsUrl(image.image)) {
-      return image.image;
+    for (const item of choice.message.content) {
+      if (isRecord(item) && item.type === 'image' && isTrustedResultUrl(item.image)) {
+        return item.image;
+      }
     }
   }
 
   throw new Error('Missing Wan image URL');
+};
+
+const readBoundedBody = async (
+  response: Response,
+  controller: AbortController,
+): Promise<Buffer> => {
+  const declaredLength = response.headers.get('content-length');
+  if (declaredLength !== null) {
+    const normalizedLength = declaredLength.trim();
+    if (!/^\d+$/.test(normalizedLength)
+      || !Number.isSafeInteger(Number(normalizedLength))
+      || Number(normalizedLength) > maximumDownloadBytes) {
+      controller.abort();
+      throw new Error('Wan image exceeds download limit');
+    }
+  }
+
+  if (!response.body) {
+    throw new Error('Wan image has no response body');
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      if (!value?.byteLength) {
+        continue;
+      }
+
+      totalBytes += value.byteLength;
+      if (totalBytes > maximumDownloadBytes) {
+        controller.abort();
+        await reader.cancel().catch(() => undefined);
+        throw new Error('Wan image exceeds download limit');
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return Buffer.concat(chunks, totalBytes);
 };
 
 const detectImageMimeType = (bytes: Buffer): string | undefined => {
@@ -76,6 +133,16 @@ class WanProvider implements GenerationProvider {
   ) {}
 
   async generate(input: GenerationInput): Promise<GeneratedImage> {
+    const hasReferenceImage = input.referenceImage !== undefined;
+    const hasReferenceMimeType = input.referenceMimeType !== undefined;
+    if (!isValidWanInputImage(input.roomImage, input.roomMimeType)
+      || hasReferenceImage !== hasReferenceMimeType
+      || (input.referenceImage
+        && input.referenceMimeType
+        && !isValidWanInputImage(input.referenceImage, input.referenceMimeType))) {
+      throw new GenerationProviderError('INVALID_INPUT');
+    }
+
     if (!this.config.dashscopeApiKey) {
       throw new GenerationProviderError('AI_NOT_CONFIGURED');
     }
@@ -85,7 +152,7 @@ class WanProvider implements GenerationProvider {
       ? toDataUrl(input.referenceImage, input.referenceMimeType)
       : undefined;
     const content = referenceDataUrl
-      ? [{ image: referenceDataUrl }, { image: roomDataUrl }, { text: twoImagePrompt }]
+      ? [{ image: referenceDataUrl }, { image: roomDataUrl }, { text: twoImagePrompt(input) }]
       : [{ image: roomDataUrl }, { text: oneImagePrompt(input) }];
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
@@ -110,12 +177,15 @@ class WanProvider implements GenerationProvider {
       }
 
       const imageUrl = readImageUrl(await generationResponse.json());
-      const downloadResponse = await this.fetchImpl(imageUrl, { signal: controller.signal });
+      const downloadResponse = await this.fetchImpl(imageUrl, {
+        signal: controller.signal,
+        redirect: 'error',
+      });
       if (!downloadResponse.ok) {
         throw new Error('Wan image download failed');
       }
 
-      const bytes = Buffer.from(await downloadResponse.arrayBuffer());
+      const bytes = await readBoundedBody(downloadResponse, controller);
       const mimeType = detectImageMimeType(bytes);
       if (!bytes.length || !mimeType) {
         throw new Error('Wan image has an invalid signature');

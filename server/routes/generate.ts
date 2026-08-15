@@ -11,6 +11,7 @@ import {
   PRESERVE_STRUCTURE_CONSTRAINT,
   type GenerationProvider,
 } from '../providers/generation-provider.js';
+import { isValidWanInputImage } from '../input-image.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -58,28 +59,6 @@ const hasOnlyExpectedTextFields = (request: Request): boolean => {
   return !body || Object.keys(body).every((fieldName) => fieldName === 'presetStyle');
 };
 
-const hasPrefix = (buffer: Buffer, prefix: readonly number[]): boolean => (
-  buffer.length >= prefix.length && prefix.every((byte, index) => buffer[index] === byte)
-);
-
-const hasExpectedImageSignature = (file: Express.Multer.File): boolean => {
-  if (file.mimetype === 'image/jpeg') {
-    return hasPrefix(file.buffer, [0xff, 0xd8, 0xff]);
-  }
-
-  if (file.mimetype === 'image/png') {
-    return hasPrefix(file.buffer, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-  }
-
-  if (file.mimetype === 'image/webp') {
-    return file.buffer.length >= 12
-      && file.buffer.subarray(0, 4).toString('ascii') === 'RIFF'
-      && file.buffer.subarray(8, 12).toString('ascii') === 'WEBP';
-  }
-
-  return false;
-};
-
 const failure = (code: GenerateFailure['code']): GenerateFailure => ({
   ok: false,
   code,
@@ -108,8 +87,8 @@ export const createGenerateRouter = (provider: GenerationProvider): Router => {
         && Boolean(roomImage)
         && (!presetStyle || presetStyles.has(presetStyle))
         && Boolean(presetStyle || referenceImage)
-        && Boolean(roomImage && hasExpectedImageSignature(roomImage))
-        && Boolean(!referenceImage || hasExpectedImageSignature(referenceImage));
+        && Boolean(roomImage && isValidWanInputImage(roomImage.buffer, roomImage.mimetype))
+        && Boolean(!referenceImage || isValidWanInputImage(referenceImage.buffer, referenceImage.mimetype));
 
       if (!validInput || !roomImage) {
         response.status(400).json(failure('INVALID_INPUT'));
@@ -155,7 +134,11 @@ export const createGenerateRouter = (provider: GenerationProvider): Router => {
     }
 
     if (error instanceof GenerationProviderError) {
-      const status = error.code === 'AI_NOT_CONFIGURED' ? 503 : 502;
+      const status = error.code === 'INVALID_INPUT'
+        ? 400
+        : error.code === 'AI_NOT_CONFIGURED'
+          ? 503
+          : 502;
       response.status(status).json(failure(error.code));
       return;
     }

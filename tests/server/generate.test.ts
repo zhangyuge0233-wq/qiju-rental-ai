@@ -3,12 +3,17 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 
 import { createApp } from '../../server/app.js';
-import type { GeneratedImage, GenerationProvider } from '../../server/providers/generation-provider.js';
+import {
+  GenerationProviderError,
+  type GeneratedImage,
+  type GenerationProvider,
+} from '../../server/providers/generation-provider.js';
 import { createGenerateRouter } from '../../server/routes/generate.js';
+import { createJpegFixture, createPngFixture, createWebpFixture } from '../helpers/image-fixtures.js';
 
-const jpegBytes = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
-const pngBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-const webpBytes = Buffer.from('524946460400000057454250', 'hex');
+const jpegBytes = createJpegFixture();
+const pngBytes = createPngFixture();
+const webpBytes = createWebpFixture();
 
 const imageFile = (bytes = jpegBytes, filename = 'room.jpg', contentType = 'image/jpeg') => ({
   bytes,
@@ -169,7 +174,9 @@ describe('POST /api/generate', () => {
   it.each([
     ['JPG', jpegBytes, 'room.jpg', 'image/jpeg'],
     ['PNG', pngBytes, 'room.png', 'image/png'],
-    ['WebP', webpBytes, 'room.webp', 'image/webp'],
+    ['WebP VP8', createWebpFixture(800, 600, 'VP8'), 'room-vp8.webp', 'image/webp'],
+    ['WebP VP8L', createWebpFixture(800, 600, 'VP8L'), 'room-vp8l.webp', 'image/webp'],
+    ['WebP VP8X', webpBytes, 'room-vp8x.webp', 'image/webp'],
   ])('接受 MIME 与签名一致的 %s 文件', async (_label, bytes, filename, contentType) => {
     const response = await attachRoom(
       request(createApp({})).post('/api/generate'),
@@ -178,6 +185,26 @@ describe('POST /api/generate', () => {
 
     expect(response.status).toBe(503);
     expect(response.body.code).toBe('AI_NOT_CONFIGURED');
+  });
+
+  it.each([
+    ['宽度小于 240', createJpegFixture(239, 600), 'room.jpg', 'image/jpeg'],
+    ['宽高比超过 8:1', createPngFixture(2000, 240), 'room.png', 'image/png'],
+    ['PNG 灰度 Alpha', createPngFixture(800, 600, 4), 'room.png', 'image/png'],
+    ['PNG 真彩 Alpha', createPngFixture(800, 600, 6), 'room.png', 'image/png'],
+    ['畸形 JPEG 元数据', Buffer.from([0xff, 0xd8, 0xff]), 'room.jpg', 'image/jpeg'],
+  ])('%s时返回稳定 INVALID_INPUT 400', async (_label, bytes, filename, contentType) => {
+    const response = await attachRoom(
+      request(createApp({})).post('/api/generate'),
+      imageFile(bytes, filename, contentType),
+    ).field('presetStyle', '奶油风');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      ok: false,
+      code: 'INVALID_INPUT',
+      message: '请检查房间照片和设计方向',
+    });
   });
 
   it.each([
@@ -225,6 +252,21 @@ describe('POST /api/generate', () => {
       message: '发生未知错误，请再次尝试',
     });
     expect(response.text).not.toMatch(/sensitive|\/Users\/|node_modules|stack/i);
+  });
+
+  it('Provider 防御性输入错误在路由边界映射为稳定 INVALID_INPUT 400', async () => {
+    const app = appWithProvider(async () => {
+      throw new GenerationProviderError('INVALID_INPUT');
+    });
+    const response = await attachRoom(request(app).post('/api/generate'))
+      .field('presetStyle', '奶油风');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      ok: false,
+      code: 'INVALID_INPUT',
+      message: '请检查房间照片和设计方向',
+    });
   });
 
   it.each([
