@@ -1,0 +1,17 @@
+:root {
+  --color-canvas: #f4f0e8;
+  --color-surface: #fbfaf6;
+  --color-coral: #ff6b3d;
+  --color-coral-soft: #fff0e9;
+  --color-graphite: #2f3632;
+  --color-mint: #dff3df;
+  --color-mint-strong: #8fc9a7;
+  --color-text: #272724;
+  --color-muted: #77736c;
+  --color-border: #e3ded4;
+  --radius-card: 24px;
+  --radius-button: 17px;
+  --font-ui: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --shadow-phone: 0 26px 76px rgb(70 64 52 / 14%);
+  --shadow-image: 0 15px 34px rgb(91 72 56 / 15%);
+}
