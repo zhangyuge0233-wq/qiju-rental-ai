@@ -1,4 +1,4 @@
-import { Router, type Request } from 'express';
+import { Router, type NextFunction, type Request, type Response } from 'express';
 import multer from 'multer';
 
 import {
@@ -12,7 +12,13 @@ import {
   type GenerationProvider,
 } from '../providers/generation-provider.js';
 
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+    files: 2,
+  },
+});
 
 type UploadedFiles = Record<string, Express.Multer.File[]>;
 
@@ -78,6 +84,15 @@ export const createGenerateRouter = (provider: GenerationProvider): Router => {
       }
     },
   );
+
+  router.use((error: unknown, _request: Request, response: Response, next: NextFunction) => {
+    if (error instanceof multer.MulterError) {
+      response.status(400).json(failure('INVALID_INPUT'));
+      return;
+    }
+
+    next(error);
+  });
 
   return router;
 };
