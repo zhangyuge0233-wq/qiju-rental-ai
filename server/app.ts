@@ -2,7 +2,7 @@ import express from 'express';
 import { fileURLToPath } from 'node:url';
 
 import { createServerConfig, type Environment } from './config.js';
-import { createMiniMaxProvider } from './providers/minimax.js';
+import { createWanProvider } from './providers/wan.js';
 import { createGenerateRouter } from './routes/generate.js';
 
 const productionClientDirectory = fileURLToPath(new URL('../../dist', import.meta.url));
@@ -17,7 +17,7 @@ export const createApp = (
   app.get('/api/health', (_request, response) => {
     response.json({ ok: true, minimaxConfigured: Boolean(config.dashscopeApiKey) });
   });
-  app.use('/api/generate', createGenerateRouter(createMiniMaxProvider()));
+  app.use('/api/generate', createGenerateRouter(createWanProvider(config)));
   app.use(express.static(clientDirectory));
 
   return app;
