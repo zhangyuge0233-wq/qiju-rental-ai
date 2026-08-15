@@ -14,6 +14,8 @@ describe('generateRoom', () => {
     // Missing or renamed fields, or returning JSON instead of the image Blob, must fail this test.
     const roomImage = new Blob(['room'], { type: 'image/jpeg' });
     const referenceImage = new Blob(['reference'], { type: 'image/png' });
+    const close = vi.fn();
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue({ width: 1, height: 1, close }));
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       ok: true,
       imageMimeType: 'image/webp',
@@ -35,14 +37,16 @@ describe('generateRoom', () => {
     expect(form.get('presetStyle')).toBe('奶油风');
     expect(result.type).toBe('image/webp');
     expect(await result.text()).toBe('generated image');
+    expect(createImageBitmap).toHaveBeenCalledWith(result);
+    expect(close).toHaveBeenCalledTimes(1);
   });
 
-  it('将非 2xx 的服务端失败响应转换为 GenerationApiError 而非图片', async () => {
-    // Turning HTTP errors into a Blob would hide real API failures from the state machine.
+  it('只按错误码映射中文文案并忽略服务端敏感 message', async () => {
+    // Rendering the server-provided message could disclose upstream implementation details.
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
       ok: false,
       code: 'MINIMAX_NOT_CONFIGURED',
-      message: 'AI 服务尚未配置，请稍后再试',
+      message: 'Sensitive upstream trace at /Users/example/private-key.ts',
     }), { status: 503, headers: { 'content-type': 'application/json' } })));
 
     const request = generateRoom({
@@ -54,6 +58,42 @@ describe('generateRoom', () => {
       'MINIMAX_NOT_CONFIGURED',
       'AI 服务尚未配置，请稍后再试',
     ));
+  });
+
+  it.each([
+    ['空 Base64', 'image/png', ''],
+    ['非法 Base64', 'image/png', '%%%not-base64%%%'],
+    ['非法 MIME', 'image/gif', btoa('GIF89a')],
+  ])('拒绝成功响应中的%s', async (_label, imageMimeType, imageBase64) => {
+    vi.stubGlobal('createImageBitmap', vi.fn().mockResolvedValue({
+      width: 1,
+      height: 1,
+      close: vi.fn(),
+    }));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      ok: true,
+      imageMimeType,
+      imageBase64,
+    }), { status: 200, headers: { 'content-type': 'application/json' } })));
+
+    await expect(generateRoom({
+      roomImage: new Blob(['room'], { type: 'image/jpeg' }),
+      presetStyle: '原木风',
+    })).rejects.toEqual(new GenerationApiError('UNKNOWN_ERROR', '发生未知错误，请再次尝试'));
+  });
+
+  it('拒绝虽为合法 Base64 但无法解码为图片的响应', async () => {
+    vi.stubGlobal('createImageBitmap', vi.fn().mockRejectedValue(new Error('decode failed')));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      ok: true,
+      imageMimeType: 'image/png',
+      imageBase64: btoa('plain text, not an image'),
+    }), { status: 200, headers: { 'content-type': 'application/json' } })));
+
+    await expect(generateRoom({
+      roomImage: new Blob(['room'], { type: 'image/jpeg' }),
+      presetStyle: '原木风',
+    })).rejects.toEqual(new GenerationApiError('UNKNOWN_ERROR', '发生未知错误，请再次尝试'));
   });
 
   it('将网络失败归类为共享的 NETWORK_ERROR', async () => {

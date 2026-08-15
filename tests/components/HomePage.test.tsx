@@ -87,6 +87,23 @@ describe('HomePage', () => {
     expect(screen.getByText('参考图将优先影响色彩、材质与氛围')).toBeTruthy();
   });
 
+  it('已有参考图时可见移除操作并只清除参考图', async () => {
+    const user = userEvent.setup();
+    const setReferenceImage = vi.fn();
+    mockedUseGeneration.mockReturnValue(controller({
+      roomImage,
+      referenceImage,
+      presetStyle: '奶油风',
+      setReferenceImage,
+    }));
+
+    render(<HomePage />);
+    await user.click(screen.getByRole('button', { name: '移除参考图' }));
+
+    expect(setReferenceImage).toHaveBeenCalledWith(undefined);
+    expect(screen.queryByRole('button', { name: '移除房间照片' })).toBeNull();
+  });
+
   it('房间图片错误以中文警告显示且保留先前有效输入', async () => {
     const user = userEvent.setup({ applyAccept: false });
     mockedUseGeneration.mockReturnValue(controller({ roomImage }));
@@ -184,5 +201,25 @@ describe('HomePage', () => {
 
     expect(screen.getByRole('alert').textContent).toContain('下载失败，请再次尝试');
     expect(screen.getByAltText('改造后的房间').getAttribute('src')).toBe('blob:result');
+  });
+
+  it.each([
+    ['PNG', 'image/png', '栖居-房间布置效果.png'],
+    ['JPEG', 'image/jpeg', '栖居-房间布置效果.jpg'],
+    ['WebP', 'image/webp', '栖居-房间布置效果.webp'],
+  ])('%s 结果下载扩展名与 Blob MIME 一致', async (_label, mimeType, expectedFilename) => {
+    const user = userEvent.setup();
+    const typedResult = new Blob(['typed-result'], { type: mimeType });
+    mockedUseGeneration.mockReturnValue(controller({
+      status: 'result',
+      roomImage,
+      resultImage: typedResult,
+      presetStyle: '奶油风',
+    }));
+
+    render(<HomePage />);
+    await user.click(screen.getByRole('button', { name: '下载效果图' }));
+
+    expect(mockedDownloadBlob).toHaveBeenCalledWith(typedResult, expectedFilename);
   });
 });

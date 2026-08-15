@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { CompareSlider } from '../components/CompareSlider';
 import { DeleteDialog } from '../components/DeleteDialog';
 import { deleteHistoryRecord, getHistoryRecord, type HistoryRecord } from '../lib/history-db';
-import { downloadBlob } from '../lib/images';
+import { downloadBlob, imageFileExtension } from '../lib/images';
 
 interface HistoryDetailPageProps {
   recordId: string;
@@ -45,17 +45,6 @@ function formatDetailTime(timestamp: number): string {
     && date.getDate() === now.getDate();
 
   return isToday ? `今天 ${time}` : `${date.getMonth() + 1}月${date.getDate()}日 ${time}`;
-}
-
-function imageExtension(mimeType: string): string {
-  const extensions: Record<string, string> = {
-    'image/jpeg': 'jpg',
-    'image/jpg': 'jpg',
-    'image/png': 'png',
-    'image/webp': 'webp',
-  };
-
-  return extensions[mimeType] ?? 'img';
 }
 
 export function HistoryDetailPage({
@@ -123,7 +112,7 @@ export function HistoryDetailPage({
     }
 
     try {
-      const extension = imageExtension(record.resultImage.type);
+      const extension = imageFileExtension(record.resultImage.type);
       downloadBlob(record.resultImage, `栖居-${record.presetStyle || '定制风格'}-效果图.${extension}`);
       setDownloadError(undefined);
     } catch {

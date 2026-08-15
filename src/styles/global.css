@@ -238,7 +238,7 @@ input:focus-visible {
   right: 13px;
   bottom: 13px;
   width: 84px;
-  height: 42px;
+  height: 44px;
   border: 0;
   border-radius: 16px;
   background: var(--color-coral);
@@ -281,7 +281,7 @@ input:focus-visible {
 }
 
 .style-option {
-  height: 40px;
+  height: 44px;
   border: 1px solid var(--color-border);
   border-radius: 14px;
   background: #fffdf9;
@@ -308,7 +308,7 @@ input:focus-visible {
   min-height: 52px;
   align-items: center;
   margin: 0;
-  padding: 8px 54px 8px 14px;
+  padding: 8px 152px 8px 14px;
   border: 1px dashed #d8d2c8;
   border-radius: 16px;
   background: #fffdf9;
@@ -328,12 +328,12 @@ input:focus-visible {
   font-size: 10px;
 }
 
-.reference-picker button {
+.reference-picker .image-picker__choose {
   position: absolute;
   right: 13px;
-  bottom: 12px;
-  width: 30px;
-  height: 30px;
+  bottom: 6px;
+  width: 44px;
+  height: 44px;
   overflow: hidden;
   border: 0;
   border-radius: 10px;
@@ -342,8 +342,8 @@ input:focus-visible {
   cursor: pointer;
 }
 
-.reference-picker button::before,
-.reference-picker button::after {
+.reference-picker .image-picker__choose::before,
+.reference-picker .image-picker__choose::after {
   content: "";
   position: absolute;
   top: 50%;
@@ -355,8 +355,21 @@ input:focus-visible {
   transform: translate(-50%, -50%);
 }
 
-.reference-picker button::after {
+.reference-picker .image-picker__choose::after {
   transform: translate(-50%, -50%) rotate(90deg);
+}
+
+.reference-picker .image-picker__remove {
+  position: absolute;
+  right: 64px;
+  bottom: 6px;
+  min-width: 82px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  color: #b45136;
+  font-size: 10px;
+  cursor: pointer;
 }
 
 .direction-note,
@@ -598,6 +611,7 @@ input:focus-visible {
 .adjust-button {
   display: block;
   width: 100%;
+  min-height: 44px;
   margin-top: 12px;
   border: 0;
   background: transparent;
@@ -609,6 +623,7 @@ input:focus-visible {
 .history-link {
   display: block;
   width: 100%;
+  min-height: 44px;
   margin-top: 13px;
   border: 0;
   background: transparent;
@@ -626,8 +641,8 @@ input:focus-visible {
 
 .subpage-top__circle,
 .subpage-top__spacer {
-  width: 35px;
-  height: 35px;
+  width: 44px;
+  height: 44px;
 }
 
 .subpage-top__circle {
@@ -731,8 +746,8 @@ input:focus-visible {
 
 .history-card__entry {
   display: grid;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   place-items: center;
   border: 0;
   border-radius: 50%;

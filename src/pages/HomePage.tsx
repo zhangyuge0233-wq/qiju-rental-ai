@@ -4,7 +4,7 @@ import { CompareSlider } from '../components/CompareSlider';
 import { ImagePicker } from '../components/ImagePicker';
 import { StylePicker } from '../components/StylePicker';
 import { useGeneration, type GenerationController } from '../hooks/use-generation';
-import { downloadBlob } from '../lib/images';
+import { downloadBlob, imageFileExtension } from '../lib/images';
 
 function useObjectUrl(blob?: Blob) {
   const [url, setUrl] = useState<string>();
@@ -63,7 +63,8 @@ function HomePageContent({ generation, onOpenHistory }: HomePageContentProps) {
     }
 
     try {
-      downloadBlob(generation.resultImage, '栖居-房间布置效果.webp');
+      const extension = imageFileExtension(generation.resultImage.type);
+      downloadBlob(generation.resultImage, `栖居-房间布置效果.${extension}`);
       setDownloadError(undefined);
     } catch {
       setDownloadError('下载失败，请再次尝试');
@@ -175,6 +176,7 @@ function HomePageContent({ generation, onOpenHistory }: HomePageContentProps) {
             setImageError(undefined);
             generation.setReferenceImage(image);
           }}
+          onRemove={() => generation.setReferenceImage(undefined)}
           onError={setImageError}
         />
       </div>

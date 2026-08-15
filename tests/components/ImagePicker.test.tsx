@@ -41,6 +41,37 @@ describe('ImagePicker', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it('仅为已有的可选图片提供中文移除操作', async () => {
+    const user = userEvent.setup();
+    const onRemove = vi.fn();
+    vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:reference'), revokeObjectURL: vi.fn() });
+
+    const { rerender } = render(
+      <ImagePicker
+        label="风格参考图"
+        required={false}
+        value={new Blob(['reference'], { type: 'image/png' })}
+        onChange={vi.fn()}
+        onRemove={onRemove}
+        onError={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: '移除参考图' }));
+    expect(onRemove).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <ImagePicker
+        label="房间照片"
+        required
+        value={new Blob(['room'], { type: 'image/jpeg' })}
+        onChange={vi.fn()}
+        onError={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: '移除房间照片' })).toBeNull();
+  });
+
   it('按回车可触发文件选择', async () => {
     const user = userEvent.setup({ applyAccept: false });
     const click = vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(() => undefined);

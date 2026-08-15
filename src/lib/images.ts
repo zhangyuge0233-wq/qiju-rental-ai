@@ -8,7 +8,13 @@ export interface ImageCompressionOptions {
   mimeType?: 'image/jpeg' | 'image/png' | 'image/webp';
 }
 
-const ACCEPTED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+export type AcceptedImageMimeType = 'image/jpeg' | 'image/png' | 'image/webp';
+
+const ACCEPTED_IMAGE_TYPES = new Set<AcceptedImageMimeType>([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+]);
 const MAX_IMAGE_SIZE = 15 * 1024 * 1024;
 const IMAGE_PROCESSING_ERROR_MESSAGE = '图片无法解析，请更换后重试';
 
@@ -19,8 +25,22 @@ export class ImageProcessingError extends Error {
   }
 }
 
+export function isAcceptedImageMimeType(value: string): value is AcceptedImageMimeType {
+  return ACCEPTED_IMAGE_TYPES.has(value as AcceptedImageMimeType);
+}
+
+export function imageFileExtension(mimeType: string): string {
+  const extensions: Record<string, string> = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+  };
+
+  return extensions[mimeType] ?? 'img';
+}
+
 export function validateImage(file: File): ImageValidation {
-  if (!ACCEPTED_IMAGE_TYPES.has(file.type)) {
+  if (!isAcceptedImageMimeType(file.type)) {
     return { ok: false, message: '仅支持 JPG、PNG 或 WebP 图片' };
   }
 
@@ -29,6 +49,29 @@ export function validateImage(file: File): ImageValidation {
   }
 
   return { ok: true };
+}
+
+export async function verifyImageBlob(blob: Blob): Promise<void> {
+  if (!blob.size || !isAcceptedImageMimeType(blob.type)) {
+    throw new ImageProcessingError();
+  }
+
+  let decodedImage: DecodedImage | undefined;
+
+  try {
+    decodedImage = await decodeImage(blob);
+    if (decodedImage.width <= 0 || decodedImage.height <= 0) {
+      throw new ImageProcessingError();
+    }
+  } catch (error) {
+    if (error instanceof ImageProcessingError) {
+      throw error;
+    }
+
+    throw new ImageProcessingError();
+  } finally {
+    decodedImage?.dispose();
+  }
 }
 
 interface DecodedImage {

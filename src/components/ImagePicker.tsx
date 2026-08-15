@@ -9,6 +9,7 @@ interface ImagePickerProps {
   value?: Blob;
   defaultImageSrc?: string;
   onChange: (blob: Blob) => void;
+  onRemove?: () => void;
   onError: (message: string) => void;
 }
 
@@ -19,6 +20,7 @@ export function ImagePicker({
   value,
   defaultImageSrc,
   onChange,
+  onRemove,
   onError,
 }: ImagePickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -95,7 +97,20 @@ export function ImagePicker({
         onChange={handleFileChange}
         hidden
       />
-      <button type="button" onClick={chooseImage}>
+      {value && onRemove && (
+        <button
+          className="image-picker__remove"
+          type="button"
+          aria-label="移除参考图"
+          onClick={() => {
+            selectionSequence.current += 1;
+            onRemove();
+          }}
+        >
+          移除参考图
+        </button>
+      )}
+      <button className="image-picker__choose" type="button" onClick={chooseImage}>
         选择图片
       </button>
     </section>

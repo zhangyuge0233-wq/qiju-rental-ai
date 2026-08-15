@@ -12,9 +12,16 @@ const readOptionalValue = (value: string | undefined): string | undefined => {
 };
 
 export const resolvePort = (environment: Environment): number => {
-  const configuredPort = Number.parseInt(environment.PORT ?? '', 10);
+  const rawPort = environment.PORT ?? '';
+  if (!/^\d+$/.test(rawPort)) {
+    return 3000;
+  }
 
-  return Number.isInteger(configuredPort) && configuredPort > 0 ? configuredPort : 3000;
+  const configuredPort = Number(rawPort);
+
+  return Number.isInteger(configuredPort) && configuredPort >= 1 && configuredPort <= 65_535
+    ? configuredPort
+    : 3000;
 };
 
 export const createServerConfig = (environment: Environment): ServerConfig => ({

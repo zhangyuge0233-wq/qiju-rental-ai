@@ -4,6 +4,7 @@ import {
   type GenerateFailure,
   type GenerateSuccess,
 } from '../../shared/generation';
+import { isAcceptedImageMimeType, verifyImageBlob } from '../lib/images';
 
 export interface GenerateRoomInput {
   roomImage: Blob;
@@ -52,7 +53,7 @@ async function readFailure(response: Response): Promise<GenerationApiError> {
   try {
     const payload: unknown = await response.json();
     if (isGenerationFailure(payload)) {
-      return new GenerationApiError(payload.code, payload.message);
+      return new GenerationApiError(payload.code);
     }
   } catch {
     // The fallback below keeps malformed service errors within the shared error contract.
@@ -62,7 +63,16 @@ async function readFailure(response: Response): Promise<GenerationApiError> {
 }
 
 function base64ToBlob(imageBase64: string, imageMimeType: string): Blob {
+  if (!isAcceptedImageMimeType(imageMimeType)
+    || !imageBase64
+    || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(imageBase64)) {
+    throw new Error('Invalid generated image payload');
+  }
+
   const bytes = atob(imageBase64);
+  if (!bytes.length) {
+    throw new Error('Empty generated image payload');
+  }
   const data = new Uint8Array(bytes.length);
 
   for (let index = 0; index < bytes.length; index += 1) {
@@ -121,7 +131,9 @@ export async function generateRoom(
   }
 
   try {
-    return base64ToBlob(payload.imageBase64, payload.imageMimeType);
+    const image = base64ToBlob(payload.imageBase64, payload.imageMimeType);
+    await verifyImageBlob(image);
+    return image;
   } catch {
     throw new GenerationApiError('UNKNOWN_ERROR');
   }
