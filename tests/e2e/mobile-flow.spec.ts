@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test.use({ viewport: { width: 390, height: 844 } });
 
-test('未配置 MiniMax 时保留输入并展示真实错误', async ({ page }) => {
+test('未配置 AI Provider 时保留输入并展示真实错误', async ({ page }) => {
   // Removing the real API connection or clearing form state after a 503 must fail this flow.
   await page.goto('/');
   await page.setInputFiles('input[name="roomImage"]', 'tests/fixtures/room.jpg');

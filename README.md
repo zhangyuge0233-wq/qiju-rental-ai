@@ -6,11 +6,14 @@
 
 复制 `.env.example` 为 `.env` 后按需填写：
 
-- `MINIMAX_API_KEY`：MiniMax 服务密钥。
-- `MINIMAX_API_URL`：MiniMax 图片生成接口地址。
+- `DASHSCOPE_API_KEY`：阿里云百炼华北 2（北京）地域的 API Key。
+- `WAN_API_URL`：万相同步图像编辑接口；默认是北京公共地址，也可填写业务空间专属地址。
+- `WAN_MODEL`：万相模型，默认 `wan2.7-image-pro`。
 - `PORT`：Express 服务端口，默认 `3000`。
 
-当前版本的 `server/providers/minimax.ts` 只保留接口边界，尚未接入正式 MiniMax 调用。即使填写环境变量，也会返回真实的 `503` 响应和“AI 服务尚未配置，请稍后再试”；不会伪造生成图片、清空已上传图片，或写入历史记录。正式接口资料到位后，只需替换该 Provider 并补充服务端测试。
+服务端通过万相 `wan2.7-image-pro` 同步图像编辑接口生成；提交一次即请求一张 2K 图，按该模型的 2K 单图规则计费。请使用北京地域 Key 并以百炼控制台的当前计费说明为准。
+
+房间图与可选参考图仅在服务端编码为 Data URL 后传给万相，不会发送到浏览器以外的其他前端服务，也不会写入服务端历史。提示词会要求保留墙体、门窗、地板、吊顶、透视和机位，但生成结果不保证几何结构准确；不能用于施工尺寸、验房或安全决策。
 
 ## 启动
 
@@ -43,7 +46,7 @@ npm run build
 npm run test:e2e
 ```
 
-`test:e2e` 使用真实本地 Vite、Express 和未配置的 MiniMax `503`，只覆盖错误提示、输入保留、空历史导航和移动端布局；不会 mock 出成功生成结果。Playwright 始终以无头模式运行。
+`test:e2e` 使用真实本地 Vite、Express 和未配置 AI Provider 的 `503`，只覆盖错误提示、输入保留、空历史导航和移动端布局；不会 mock 出成功生成结果。Playwright 始终以无头模式运行。
 
 首次运行 E2E，请先安装默认的 Playwright Chromium：
 
