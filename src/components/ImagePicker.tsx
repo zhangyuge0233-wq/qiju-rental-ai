@@ -4,6 +4,7 @@ import { ImageProcessingError, compressImage, validateImage } from '../lib/image
 
 interface ImagePickerProps {
   label: string;
+  name?: string;
   required: boolean;
   value?: Blob;
   defaultImageSrc?: string;
@@ -13,6 +14,7 @@ interface ImagePickerProps {
 
 export function ImagePicker({
   label,
+  name,
   required,
   value,
   defaultImageSrc,
@@ -74,7 +76,7 @@ export function ImagePicker({
       </div>
 
       {valueUrl ? (
-        <img src={valueUrl} alt={`已选择的${label}`} />
+        <img src={valueUrl} alt={`已上传的${label}`} />
       ) : defaultImageSrc ? (
         <figure>
           <img src={defaultImageSrc} alt={`默认${label}示例`} />
@@ -87,6 +89,7 @@ export function ImagePicker({
       <input
         ref={inputRef}
         type="file"
+        name={name}
         accept="image/jpeg,image/png,image/webp"
         aria-label={`${label}图片选择`}
         onChange={handleFileChange}

@@ -98,7 +98,7 @@ describe('HomePage', () => {
     );
 
     expect(screen.getByRole('alert').textContent).toBe('仅支持 JPG、PNG 或 WebP 图片');
-    expect(screen.getByAltText('已选择的房间照片')).toBeTruthy();
+    expect(screen.getByAltText('已上传的房间照片')).toBeTruthy();
   });
 
   it('生成中显示循环状态且不虚构百分比', () => {

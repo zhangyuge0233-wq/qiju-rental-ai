@@ -151,6 +151,7 @@ function HomePageContent({ generation, onOpenHistory }: HomePageContentProps) {
       <div className="room-picker">
         <ImagePicker
           label="房间照片"
+          name="roomImage"
           required
           value={generation.roomImage}
           defaultImageSrc="/assets/default-room.webp"
@@ -167,6 +168,7 @@ function HomePageContent({ generation, onOpenHistory }: HomePageContentProps) {
       <div className="reference-picker">
         <ImagePicker
           label="风格参考图"
+          name="referenceImage"
           required={false}
           value={generation.referenceImage}
           onChange={(image) => {

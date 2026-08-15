@@ -79,7 +79,7 @@ describe('ImagePicker', () => {
 
     expect(onError).toHaveBeenCalledWith('仅支持 JPG、PNG 或 WebP 图片');
     expect(onChange).not.toHaveBeenCalled();
-    expect(screen.getByAltText('已选择的房间照片')).toBeTruthy();
+    expect(screen.getByAltText('已上传的房间照片')).toBeTruthy();
   });
 
   it('合规图片压缩后交给调用方', async () => {
