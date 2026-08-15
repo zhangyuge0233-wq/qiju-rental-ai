@@ -51,6 +51,21 @@ afterEach(() => {
 });
 
 describe('HomePage', () => {
+  it('历史入口只出现一次并位于首页品牌栏右侧', async () => {
+    const user = userEvent.setup();
+    const onOpenHistory = vi.fn();
+
+    render(<HomePage onOpenHistory={onOpenHistory} />);
+
+    const entries = screen.getAllByRole('button', { name: '查看历史记录' });
+    expect(entries).toHaveLength(1);
+    expect(entries[0].closest('.brand-bar')).not.toBeNull();
+    expect(entries[0].querySelector('svg')).not.toBeNull();
+
+    await user.click(entries[0]);
+    expect(onOpenHistory).toHaveBeenCalledTimes(1);
+  });
+
   it.each([
     ['没有输入', {}],
     ['只有房间照片', { roomImage }],

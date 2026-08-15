@@ -24,14 +24,29 @@ function useObjectUrl(blob?: Blob) {
   return url;
 }
 
-function Brand() {
+function Brand({ onOpenHistory }: { onOpenHistory?: () => void }) {
   return (
     <header className="brand-bar">
       <div className="brand">
         <span className="brand__logo" aria-hidden="true">栖</span>
         <span>栖居</span>
       </div>
-      <span className="brand-bar__tag">AI 房间设计</span>
+      {onOpenHistory ? (
+        <button
+          className="home-history-entry"
+          type="button"
+          onClick={onOpenHistory}
+          aria-label="查看历史记录"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 12a8 8 0 1 0 2.35-5.65L4 8.7" />
+            <path d="M4 4v4.7h4.7M12 7.5V12l3 1.8" />
+          </svg>
+          <span>历史记录</span>
+        </button>
+      ) : (
+        <span className="brand-bar__tag">AI 房间设计</span>
+      )}
     </header>
   );
 }
@@ -142,7 +157,7 @@ function HomePageContent({ generation, onOpenHistory }: HomePageContentProps) {
 
   return (
     <main className="app-shell">
-      <Brand />
+      <Brand onOpenHistory={onOpenHistory} />
       <section className="hero">
         <h1>让房间<span>更像你</span></h1>
         <p>一张照片，看看你的出租屋还能有多好看。</p>
@@ -195,9 +210,6 @@ function HomePageContent({ generation, onOpenHistory }: HomePageContentProps) {
         onClick={() => void generation.generate()}
       >
         生成我的房间
-      </button>
-      <button className="history-link" type="button" onClick={onOpenHistory}>
-        查看历史记录
       </button>
     </main>
   );

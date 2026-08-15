@@ -620,16 +620,29 @@ input:focus-visible {
   cursor: pointer;
 }
 
-.history-link {
-  display: block;
-  width: 100%;
+.home-history-entry {
+  display: inline-flex;
+  min-width: 44px;
   min-height: 44px;
-  margin-top: 13px;
+  padding: 0 2px 0 8px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   border: 0;
   background: transparent;
-  color: #777169;
+  color: #56514b;
   font-size: 11px;
   cursor: pointer;
+}
+
+.home-history-entry svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: var(--color-coral);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 
 .subpage-top {
