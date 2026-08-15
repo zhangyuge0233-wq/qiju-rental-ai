@@ -1,38 +1,44 @@
-# 栖居 MiniMax Provider 对接设计
+# 栖居 MiniMax 文生图切换设计
 
 ## 目标
 
-将现有固定返回 `MINIMAX_NOT_CONFIGURED` 的 Provider 替换为真实 MiniMax 图片生成请求，让用户可用已配置的 API Key 试跑预设风格房间重绘。该能力标记为实验性：MiniMax 官方图生图只支持 `character` 人物主体参考，不能承诺保持房间硬装结构。
+将当前万相 `wan2.7-image-pro` Provider 替换为 MiniMax `image-01` 文生图，第一优先级是让真实 API 链路跑通。用户已明确接受：生成结果不必保留上传房间的真实空间结构。
 
-## 范围
+## 已确认取舍
 
-- 服务端读取现有 `MINIMAX_API_KEY` 与 `MINIMAX_API_URL`，密钥不进入浏览器、日志或响应。
-- 使用 `image-01`、`response_format: base64`、`n: 1`。
-- 将房间照片编码为完整 Data URL，放入唯一的 `subject_reference`。
-- 将预设风格和“保留硬装结构”约束组成中文 prompt。
-- 解码 MiniMax 返回的首张 Base64 图片，并按真实文件签名识别 JPEG、PNG 或 WebP。
-- 网络失败、非 2xx、MiniMax 业务错误、空结果或坏图片统一映射为 `UPSTREAM_ERROR`。
-- 未配置 Key 或 URL 继续返回 `MINIMAX_NOT_CONFIGURED`。
+- 使用 MiniMax 直接文生图，不把房间照片传给 `subject_reference`。
+- 房间照片继续作为产品必填输入，用于结果页的“改造前/改造后”对比与历史记录；本轮不声称模型编辑了原图。
+- 风格参考图继续保留在前端流程与历史记录中，但不发送给 MiniMax；预设风格与固定空间提示词共同驱动生成。
+- 不接第二个视觉模型，不新增房间识别、图像描述或空间解析能力。
 
-## MiniMax 限制
+## 服务端范围
 
-- 房间照片会实验性地传给只支持人物主体的 `subject_reference`；结果可能不保留结构。
-- 官方单次只允许一张主体参考图，因此本轮始终优先传房间照片；用户额外上传的风格参考图不能同时传给 MiniMax。
-- 先用预设风格验证链路。仅上传参考图时不伪造“已参考该图片”的提示词，返回稳定的上游失败提示。
-- MiniMax Data URL 输入仅支持 JPG/JPEG/PNG 且小于 10 MB；WebP 房间图需在接入边界明确拒绝或转换。本轮采用拒绝并映射为稳定错误，避免服务端重新编码引入额外图像依赖。
+- 配置改为读取 `MINIMAX_API_KEY`、`MINIMAX_API_URL` 与 `MINIMAX_MODEL`。
+- 默认接口为 `https://api.minimaxi.com/v1/image_generation`，默认模型为 `image-01`。
+- 请求使用 Bearer 鉴权、`response_format: base64`、`n: 1`、`aspect_ratio: 3:4`，并关闭自动提示词优化，避免上游改写结构约束。
+- Prompt 由预设风格、出租屋场景和空间稳定约束组成：单一房间、固定正面广角机位、完整墙面与地面、门窗位置不变、自然比例，只调整家具、软装、材质与灯光。
+- Provider 解码首张 Base64 图片，并按真实文件签名识别 JPEG、PNG 或 WebP。
+- 未配置密钥返回现有通用错误 `AI_NOT_CONFIGURED`；网络失败、非 2xx、MiniMax 业务错误、空结果或坏图片统一映射为 `UPSTREAM_ERROR`。
+- 健康检查返回 `provider: "minimax"`，密钥不进入浏览器、日志或响应。
 
-## 结构与数据流
+## 数据流
 
-1. `createApp` 将服务端配置传给 `createMiniMaxProvider`。
-2. Provider 校验配置、预设风格和输入图片限制。
-3. Provider 通过可注入的 `fetch` 发起 JSON POST，请求设置 Bearer 鉴权和超时。
-4. Provider 校验 HTTP 状态、`base_resp.status_code`、Base64 内容和图片签名。
-5. 现有 `/api/generate` 将 Provider 输出转换为统一前端成功响应；现有前端继续负责解码、展示和写入历史。
+1. 前端继续提交房间照片、预设风格和可选参考图。
+2. 现有路由继续校验上传边界并构造统一 `GenerationInput`。
+3. MiniMax Provider 只读取预设风格，组合固定中文 Prompt 后调用文生图接口。
+4. Provider 验证业务状态、Base64 内容和图片签名，返回统一图片字节。
+5. 前端继续展示对比结果并写入本地历史。
+
+## 明示限制
+
+- MiniMax 官方参考图能力仅支持人物主体，本轮不实验性上传房间图。
+- “保留墙体、门窗、机位”等文字属于生成约束，不代表模型知道原房间结构。
+- 结果是按同类空间描述重新生成的新房间，而非对上传照片做真实编辑。
 
 ## 测试与验收
 
-- Provider 单测覆盖：未配置、请求头、请求体、Data URL、提示词、成功解码、MiniMax 业务失败、HTTP/网络失败、坏 Base64、坏图片、超限与不支持格式。
-- 路由测试覆盖：配置确实进入 Provider，未配置行为保持不变。
-- 运行全量测试、类型检查、构建和真实服务健康检查。
-- 真实生成会产生费用，只在用户已明确要求试用时执行一次；不打印密钥或完整请求体。
-
+- Provider 单测覆盖配置、请求头、请求体、提示词、成功解码、MiniMax 业务失败、HTTP/网络失败、坏 Base64、坏图片与超时。
+- 配置、健康检查和路由测试改为 MiniMax 口径；删除万相专属测试与文档口径。
+- 运行全量测试、类型检查和构建。
+- 本地启动后验证 `/api/health` 显示 MiniMax 已配置。
+- 用户填入 `MINIMAX_API_KEY` 后，只执行一次真实生成验收；不打印密钥、完整请求体或图片内容。
