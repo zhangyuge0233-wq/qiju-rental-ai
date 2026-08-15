@@ -64,4 +64,16 @@ describe('generateRoom', () => {
       presetStyle: '原木风',
     })).rejects.toEqual(new GenerationApiError('NETWORK_ERROR', '网络连接失败，请检查网络后重试'));
   });
+
+  it('保留调用方主动取消的 AbortError', async () => {
+    // Mapping cancellation to NETWORK_ERROR would make intentional invalidation look like a failed request.
+    const abortError = new DOMException('The operation was aborted.', 'AbortError');
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(abortError));
+    const controller = new AbortController();
+
+    await expect(generateRoom({
+      roomImage: new Blob(['room'], { type: 'image/jpeg' }),
+      presetStyle: '原木风',
+    }, controller.signal)).rejects.toBe(abortError);
+  });
 });

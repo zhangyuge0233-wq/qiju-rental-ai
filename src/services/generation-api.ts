@@ -72,6 +72,11 @@ function base64ToBlob(imageBase64: string, imageMimeType: string): Blob {
   return new Blob([data], { type: imageMimeType });
 }
 
+function isAbortError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null
+    && 'name' in error && error.name === 'AbortError';
+}
+
 export async function generateRoom(
   input: GenerateRoomInput,
   signal?: AbortSignal,
@@ -92,7 +97,11 @@ export async function generateRoom(
       body: formData,
       signal,
     });
-  } catch {
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw error;
+    }
+
     throw new GenerationApiError('NETWORK_ERROR');
   }
 

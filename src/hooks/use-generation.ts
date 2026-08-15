@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { generationErrorMessage } from '../../shared/generation';
 import { saveHistoryRecord, type HistoryRecord } from '../lib/history-db';
@@ -40,13 +40,41 @@ export function useGeneration(): GenerationController {
   const [state, setState] = useState<GenerationState>(initialState);
   const stateRef = useRef(state);
   const generationInFlightRef = useRef(false);
+  const mountedRef = useRef(true);
+  const generationVersionRef = useRef(0);
+  const activeAbortControllerRef = useRef<AbortController | undefined>(undefined);
 
   const replaceState = useCallback((nextState: GenerationState) => {
+    if (!mountedRef.current) {
+      return;
+    }
+
     stateRef.current = nextState;
     setState(nextState);
   }, []);
 
+  const invalidateActiveGeneration = useCallback(() => {
+    generationVersionRef.current += 1;
+    generationInFlightRef.current = false;
+    activeAbortControllerRef.current?.abort();
+    activeAbortControllerRef.current = undefined;
+  }, []);
+
+  const isCurrentGeneration = useCallback((version: number) => (
+    mountedRef.current && generationVersionRef.current === version
+  ), []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+      invalidateActiveGeneration();
+    };
+  }, [invalidateActiveGeneration]);
+
   const setRoomImage = useCallback((roomImage: Blob) => {
+    invalidateActiveGeneration();
     const current = stateRef.current;
     replaceState({
       status: 'editing',
@@ -54,9 +82,10 @@ export function useGeneration(): GenerationController {
       referenceImage: current.referenceImage,
       presetStyle: current.presetStyle,
     });
-  }, [replaceState]);
+  }, [invalidateActiveGeneration, replaceState]);
 
   const setReferenceImage = useCallback((referenceImage?: Blob) => {
+    invalidateActiveGeneration();
     const current = stateRef.current;
     replaceState({
       status: 'editing',
@@ -64,9 +93,10 @@ export function useGeneration(): GenerationController {
       referenceImage,
       presetStyle: current.presetStyle,
     });
-  }, [replaceState]);
+  }, [invalidateActiveGeneration, replaceState]);
 
   const setPresetStyle = useCallback((presetStyle?: string) => {
+    invalidateActiveGeneration();
     const current = stateRef.current;
     replaceState({
       status: 'editing',
@@ -74,7 +104,7 @@ export function useGeneration(): GenerationController {
       referenceImage: current.referenceImage,
       presetStyle,
     });
-  }, [replaceState]);
+  }, [invalidateActiveGeneration, replaceState]);
 
   const generate = useCallback(async () => {
     const input = stateRef.current;
@@ -87,7 +117,11 @@ export function useGeneration(): GenerationController {
       return;
     }
 
+    const version = generationVersionRef.current + 1;
+    const abortController = new AbortController();
+    generationVersionRef.current = version;
     generationInFlightRef.current = true;
+    activeAbortControllerRef.current = abortController;
     replaceState({ ...input, status: 'generating', error: undefined });
 
     try {
@@ -95,7 +129,11 @@ export function useGeneration(): GenerationController {
         roomImage: input.roomImage,
         referenceImage: input.referenceImage,
         presetStyle: input.presetStyle,
-      });
+      }, abortController.signal);
+      if (!isCurrentGeneration(version)) {
+        return;
+      }
+
       const completedState: GenerationState = {
         status: 'result',
         roomImage: input.roomImage,
@@ -121,12 +159,18 @@ export function useGeneration(): GenerationController {
       try {
         await saveHistoryRecord(record);
       } catch {
-        replaceState({
-          ...completedState,
-          error: '效果图已生成，但未能保存到历史记录',
-        });
+        if (isCurrentGeneration(version)) {
+          replaceState({
+            ...completedState,
+            error: '效果图已生成，但未能保存到历史记录',
+          });
+        }
       }
     } catch (error) {
+      if (!isCurrentGeneration(version)) {
+        return;
+      }
+
       replaceState({
         ...input,
         status: 'error',
@@ -135,11 +179,15 @@ export function useGeneration(): GenerationController {
           : generationErrorMessage('UNKNOWN_ERROR'),
       });
     } finally {
-      generationInFlightRef.current = false;
+      if (isCurrentGeneration(version)) {
+        generationInFlightRef.current = false;
+        activeAbortControllerRef.current = undefined;
+      }
     }
-  }, [replaceState]);
+  }, [isCurrentGeneration, replaceState]);
 
   const resetToEditing = useCallback(() => {
+    invalidateActiveGeneration();
     const current = stateRef.current;
     replaceState({
       status: 'editing',
@@ -147,16 +195,17 @@ export function useGeneration(): GenerationController {
       referenceImage: current.referenceImage,
       presetStyle: current.presetStyle,
     });
-  }, [replaceState]);
+  }, [invalidateActiveGeneration, replaceState]);
 
   const restoreFromHistory = useCallback((record: HistoryRecord) => {
+    invalidateActiveGeneration();
     replaceState({
       status: 'editing',
       roomImage: record.roomImage,
       referenceImage: record.referenceImage,
       presetStyle: record.presetStyle,
     });
-  }, [replaceState]);
+  }, [invalidateActiveGeneration, replaceState]);
 
   return {
     ...state,

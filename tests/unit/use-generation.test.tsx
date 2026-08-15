@@ -143,4 +143,136 @@ describe('useGeneration', () => {
     expect(result.current.resultImage).toBeUndefined();
     expect(result.current.error).toBeUndefined();
   });
+
+  it('输入变更后忽略旧请求结果且不保存旧历史', async () => {
+    // Without request invalidation, the first request overwrites the newly selected room.
+    let resolveGeneration: ((value: Blob) => void) | undefined;
+    let signal: AbortSignal | undefined;
+    mockedGenerateRoom.mockImplementation((_input, requestSignal) => {
+      signal = requestSignal;
+      return new Promise((resolve) => {
+        resolveGeneration = resolve;
+      });
+    });
+    const replacementRoom = new Blob(['replacement'], { type: 'image/jpeg' });
+    const { result } = renderHook(() => useGeneration());
+    act(() => {
+      result.current.setRoomImage(roomBlob);
+      result.current.setPresetStyle('奶油风');
+    });
+
+    let generation: Promise<void>;
+    act(() => {
+      generation = result.current.generate();
+      result.current.setRoomImage(replacementRoom);
+    });
+    expect(signal?.aborted).toBe(true);
+
+    await act(async () => {
+      resolveGeneration?.(resultBlob);
+      await generation!;
+    });
+
+    expect(result.current.status).toBe('editing');
+    expect(result.current.roomImage).toBe(replacementRoom);
+    expect(result.current.resultImage).toBeUndefined();
+    expect(mockedSaveHistoryRecord).not.toHaveBeenCalled();
+  });
+
+  it('重新调整后忽略旧请求结果', async () => {
+    // A reset must not be undone when an already-started request resolves.
+    let resolveGeneration: ((value: Blob) => void) | undefined;
+    mockedGenerateRoom.mockImplementation(() => new Promise((resolve) => {
+      resolveGeneration = resolve;
+    }));
+    const { result } = renderHook(() => useGeneration());
+    act(() => {
+      result.current.setRoomImage(roomBlob);
+      result.current.setPresetStyle('奶油风');
+    });
+
+    let generation: Promise<void>;
+    act(() => {
+      generation = result.current.generate();
+      result.current.resetToEditing();
+    });
+    await act(async () => {
+      resolveGeneration?.(resultBlob);
+      await generation!;
+    });
+
+    expect(result.current.status).toBe('editing');
+    expect(result.current.resultImage).toBeUndefined();
+    expect(mockedSaveHistoryRecord).not.toHaveBeenCalled();
+  });
+
+  it('恢复历史后忽略旧请求结果', async () => {
+    // A late completion must not replace the inputs restored from history.
+    let resolveGeneration: ((value: Blob) => void) | undefined;
+    mockedGenerateRoom.mockImplementation(() => new Promise((resolve) => {
+      resolveGeneration = resolve;
+    }));
+    const restoredRoom = new Blob(['restored-room'], { type: 'image/jpeg' });
+    const record: HistoryRecord = {
+      id: 'history-2',
+      roomImage: restoredRoom,
+      referenceImage: referenceBlob,
+      presetStyle: '中古风',
+      resultImage: resultBlob,
+      createdAt: 2,
+      inputSnapshot: { presetStyle: '中古风', hasReferenceImage: true },
+    };
+    const { result } = renderHook(() => useGeneration());
+    act(() => {
+      result.current.setRoomImage(roomBlob);
+      result.current.setPresetStyle('奶油风');
+    });
+
+    let generation: Promise<void>;
+    act(() => {
+      generation = result.current.generate();
+      result.current.restoreFromHistory(record);
+    });
+    await act(async () => {
+      resolveGeneration?.(resultBlob);
+      await generation!;
+    });
+
+    expect(result.current.status).toBe('editing');
+    expect(result.current.roomImage).toBe(restoredRoom);
+    expect(result.current.referenceImage).toBe(referenceBlob);
+    expect(result.current.presetStyle).toBe('中古风');
+    expect(mockedSaveHistoryRecord).not.toHaveBeenCalled();
+  });
+
+  it('卸载后取消并忽略旧请求回调，不写历史', async () => {
+    // A completion after unmount must neither update React state nor persist a stale result.
+    let resolveGeneration: ((value: Blob) => void) | undefined;
+    let signal: AbortSignal | undefined;
+    mockedGenerateRoom.mockImplementation((_input, requestSignal) => {
+      signal = requestSignal;
+      return new Promise((resolve) => {
+        resolveGeneration = resolve;
+      });
+    });
+    const { result, unmount } = renderHook(() => useGeneration());
+    act(() => {
+      result.current.setRoomImage(roomBlob);
+      result.current.setPresetStyle('奶油风');
+    });
+
+    let generation: Promise<void>;
+    act(() => {
+      generation = result.current.generate();
+    });
+    unmount();
+    expect(signal?.aborted).toBe(true);
+
+    await act(async () => {
+      resolveGeneration?.(resultBlob);
+      await generation!;
+    });
+
+    expect(mockedSaveHistoryRecord).not.toHaveBeenCalled();
+  });
 });
