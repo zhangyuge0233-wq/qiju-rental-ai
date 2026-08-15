@@ -16,7 +16,7 @@ const oneImagePrompt = (input: GenerationInput) => (
 
 const twoImagePrompt = '参考图用于提取设计风格；房间图用于保留空间结构。保留墙体、门窗、地板、吊顶、透视和相机机位，仅调整家具和软装。';
 
-const requestTimeoutMs = 30_000;
+const requestTimeoutMs = 120_000;
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null

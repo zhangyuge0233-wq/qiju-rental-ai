@@ -116,6 +116,42 @@ describe('createWanProvider', () => {
       .resolves.toEqual({ bytes: webp, mimeType: 'image/webp' });
   });
 
+  it('默认 120 秒超时中止请求并返回脱敏的 UPSTREAM_ERROR', async () => {
+    vi.useFakeTimers();
+
+    try {
+      const fetchImpl = vi.fn<typeof fetch>().mockImplementation((_url, init) => new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          reject(new Error('upstream private message test-dashscope-key /Users/private/local-file.png'));
+        }, { once: true });
+      }));
+      const operation = createWanProvider(config, fetchImpl).generate(input());
+      let settled = false;
+      void operation.then(() => { settled = true; }, () => { settled = true; });
+
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(settled).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(90_000);
+      await expect(operation).rejects.toMatchObject({
+        code: 'UPSTREAM_ERROR',
+        name: GenerationProviderError.name,
+        message: 'AI 生成失败，请再次尝试',
+      });
+
+      try {
+        await operation;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        expect(message).not.toContain('test-dashscope-key');
+        expect(message).not.toContain('upstream private message');
+        expect(message).not.toContain('/Users/private/local-file.png');
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   const expectUpstreamErrorWithoutSensitiveDetails = async (operation: Promise<unknown>) => {
     await expect(operation).rejects.toMatchObject({
       code: 'UPSTREAM_ERROR',
