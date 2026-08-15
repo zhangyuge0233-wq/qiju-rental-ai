@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { CompareSlider } from '../components/CompareSlider';
 import { ImagePicker } from '../components/ImagePicker';
 import { StylePicker } from '../components/StylePicker';
-import { useGeneration } from '../hooks/use-generation';
+import { useGeneration, type GenerationController } from '../hooks/use-generation';
 import { downloadBlob } from '../lib/images';
 
 function useObjectUrl(blob?: Blob) {
@@ -36,8 +36,17 @@ function Brand() {
   );
 }
 
-export function HomePage() {
-  const generation = useGeneration();
+interface HomePageProps {
+  generationController?: GenerationController;
+  onOpenHistory?: () => void;
+}
+
+interface HomePageContentProps {
+  generation: GenerationController;
+  onOpenHistory: () => void;
+}
+
+function HomePageContent({ generation, onOpenHistory }: HomePageContentProps) {
   const [downloadError, setDownloadError] = useState<string>();
   const [imageError, setImageError] = useState<string>();
   const roomUrl = useObjectUrl(generation.status === 'generating' || generation.status === 'result'
@@ -183,6 +192,25 @@ export function HomePage() {
       >
         生成我的房间
       </button>
+      <button className="history-link" type="button" onClick={onOpenHistory}>
+        查看历史记录
+      </button>
     </main>
   );
+}
+
+function HomePageWithController({ onOpenHistory }: Pick<HomePageContentProps, 'onOpenHistory'>) {
+  const generation = useGeneration();
+  return <HomePageContent generation={generation} onOpenHistory={onOpenHistory} />;
+}
+
+export function HomePage({
+  generationController,
+  onOpenHistory = () => {},
+}: HomePageProps = {}) {
+  if (generationController) {
+    return <HomePageContent generation={generationController} onOpenHistory={onOpenHistory} />;
+  }
+
+  return <HomePageWithController onOpenHistory={onOpenHistory} />;
 }
