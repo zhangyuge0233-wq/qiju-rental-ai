@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist-server/
+playwright-report/
+test-results/
+coverage/
+.env
+.DS_Store
+.superpowers/
