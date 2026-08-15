@@ -7,7 +7,7 @@ import {
 
 export class MiniMaxUnavailableProvider implements GenerationProvider {
   async generate(_input: GenerationInput): Promise<GeneratedImage> {
-    throw new GenerationProviderError('MINIMAX_NOT_CONFIGURED');
+    throw new GenerationProviderError('AI_NOT_CONFIGURED');
   }
 }
 

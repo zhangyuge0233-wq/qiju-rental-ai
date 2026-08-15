@@ -15,7 +15,7 @@ export const createApp = (
   const app = express();
 
   app.get('/api/health', (_request, response) => {
-    response.json({ ok: true, minimaxConfigured: Boolean(config.minimaxApiKey) });
+    response.json({ ok: true, minimaxConfigured: Boolean(config.dashscopeApiKey) });
   });
   app.use('/api/generate', createGenerateRouter(createMiniMaxProvider()));
   app.use(express.static(clientDirectory));

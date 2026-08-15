@@ -1,10 +1,14 @@
 export type Environment = Record<string, string | undefined>;
 
 export interface ServerConfig {
-  minimaxApiKey?: string;
-  minimaxApiUrl?: string;
+  dashscopeApiKey?: string;
+  wanApiUrl: string;
+  wanModel: string;
   port: number;
 }
+
+const defaultWanApiUrl = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation';
+const defaultWanModel = 'wan2.7-image-pro';
 
 const readOptionalValue = (value: string | undefined): string | undefined => {
   const trimmedValue = value?.trim();
@@ -25,7 +29,8 @@ export const resolvePort = (environment: Environment): number => {
 };
 
 export const createServerConfig = (environment: Environment): ServerConfig => ({
-  minimaxApiKey: readOptionalValue(environment.MINIMAX_API_KEY),
-  minimaxApiUrl: readOptionalValue(environment.MINIMAX_API_URL),
+  dashscopeApiKey: readOptionalValue(environment.DASHSCOPE_API_KEY),
+  wanApiUrl: readOptionalValue(environment.WAN_API_URL) ?? defaultWanApiUrl,
+  wanModel: readOptionalValue(environment.WAN_MODEL) ?? defaultWanModel,
   port: resolvePort(environment),
 });

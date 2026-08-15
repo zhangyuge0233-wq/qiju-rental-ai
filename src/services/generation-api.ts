@@ -23,7 +23,7 @@ export class GenerationApiError extends Error {
 }
 
 const generationErrorCodes = new Set<GenerationErrorCode>([
-  'MINIMAX_NOT_CONFIGURED',
+  'AI_NOT_CONFIGURED',
   'INVALID_INPUT',
   'UPSTREAM_ERROR',
   'NETWORK_ERROR',

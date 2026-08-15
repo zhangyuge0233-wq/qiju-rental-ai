@@ -45,7 +45,7 @@ describe('generateRoom', () => {
     // Rendering the server-provided message could disclose upstream implementation details.
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
       ok: false,
-      code: 'MINIMAX_NOT_CONFIGURED',
+      code: 'AI_NOT_CONFIGURED',
       message: 'Sensitive upstream trace at /Users/example/private-key.ts',
     }), { status: 503, headers: { 'content-type': 'application/json' } })));
 
@@ -55,7 +55,7 @@ describe('generateRoom', () => {
     });
 
     await expect(request).rejects.toEqual(new GenerationApiError(
-      'MINIMAX_NOT_CONFIGURED',
+      'AI_NOT_CONFIGURED',
       'AI 服务尚未配置，请稍后再试',
     ));
   });

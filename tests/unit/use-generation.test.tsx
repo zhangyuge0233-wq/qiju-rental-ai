@@ -33,8 +33,8 @@ describe('useGeneration', () => {
   it('接口失败后保留输入并进入 error 状态', async () => {
     // Clearing the form on a rejected API call would force users to upload again.
     mockedGenerateRoom.mockRejectedValue(new GenerationApiError(
-      'MINIMAX_NOT_CONFIGURED',
-      generationErrorMessage('MINIMAX_NOT_CONFIGURED'),
+      'AI_NOT_CONFIGURED',
+      generationErrorMessage('AI_NOT_CONFIGURED'),
     ));
     const { result } = renderHook(() => useGeneration());
 

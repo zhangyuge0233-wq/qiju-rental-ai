@@ -155,7 +155,7 @@ export const createGenerateRouter = (provider: GenerationProvider): Router => {
     }
 
     if (error instanceof GenerationProviderError) {
-      const status = error.code === 'MINIMAX_NOT_CONFIGURED' ? 503 : 502;
+      const status = error.code === 'AI_NOT_CONFIGURED' ? 503 : 502;
       response.status(status).json(failure(error.code));
       return;
     }

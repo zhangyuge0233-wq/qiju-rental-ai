@@ -37,7 +37,7 @@ describe('POST /api/generate', () => {
       .field('presetStyle', '奶油风');
 
     expect(response.status).toBe(503);
-    expect(response.body).toMatchObject({ ok: false, code: 'MINIMAX_NOT_CONFIGURED' });
+    expect(response.body).toMatchObject({ ok: false, code: 'AI_NOT_CONFIGURED' });
     expect(response.body.imageBase64).toBeUndefined();
   });
 
@@ -64,7 +64,7 @@ describe('POST /api/generate', () => {
         .field('presetStyle', presetStyle);
 
       expect(response.status).toBe(503);
-      expect(response.body.code).toBe('MINIMAX_NOT_CONFIGURED');
+      expect(response.body.code).toBe('AI_NOT_CONFIGURED');
     },
   );
 
@@ -145,7 +145,7 @@ describe('POST /api/generate', () => {
     ).field('presetStyle', '奶油风');
 
     expect(response.status).toBe(503);
-    expect(response.body.code).toBe('MINIMAX_NOT_CONFIGURED');
+    expect(response.body.code).toBe('AI_NOT_CONFIGURED');
   });
 
   it('超过 15 MB 时返回不含堆栈的 JSON 输入错误', async () => {
@@ -177,7 +177,7 @@ describe('POST /api/generate', () => {
     ).field('presetStyle', '奶油风');
 
     expect(response.status).toBe(503);
-    expect(response.body.code).toBe('MINIMAX_NOT_CONFIGURED');
+    expect(response.body.code).toBe('AI_NOT_CONFIGURED');
   });
 
   it.each([
