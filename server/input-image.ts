@@ -168,7 +168,7 @@ const parseWebpMetadata = (bytes: Buffer): ImageMetadata | undefined => {
   return undefined;
 };
 
-export const isValidWanInputImage = (bytes: Buffer, mimeType: string): boolean => {
+export const isValidGenerationInputImage = (bytes: Buffer, mimeType: string): boolean => {
   if (!bytes.length) {
     return false;
   }

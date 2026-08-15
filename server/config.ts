@@ -1,14 +1,14 @@
 export type Environment = Record<string, string | undefined>;
 
 export interface ServerConfig {
-  dashscopeApiKey?: string;
-  wanApiUrl: string;
-  wanModel: string;
+  minimaxApiKey?: string;
+  minimaxApiUrl: string;
+  minimaxModel: string;
   port: number;
 }
 
-const defaultWanApiUrl = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation';
-const defaultWanModel = 'wan2.7-image-pro';
+const defaultMiniMaxApiUrl = 'https://api.minimaxi.com/v1/image_generation';
+const defaultMiniMaxModel = 'image-01';
 
 const readOptionalValue = (value: string | undefined): string | undefined => {
   const trimmedValue = value?.trim();
@@ -29,8 +29,8 @@ export const resolvePort = (environment: Environment): number => {
 };
 
 export const createServerConfig = (environment: Environment): ServerConfig => ({
-  dashscopeApiKey: readOptionalValue(environment.DASHSCOPE_API_KEY),
-  wanApiUrl: readOptionalValue(environment.WAN_API_URL) ?? defaultWanApiUrl,
-  wanModel: readOptionalValue(environment.WAN_MODEL) ?? defaultWanModel,
+  minimaxApiKey: readOptionalValue(environment.MINIMAX_API_KEY),
+  minimaxApiUrl: readOptionalValue(environment.MINIMAX_API_URL) ?? defaultMiniMaxApiUrl,
+  minimaxModel: readOptionalValue(environment.MINIMAX_MODEL) ?? defaultMiniMaxModel,
   port: resolvePort(environment),
 });

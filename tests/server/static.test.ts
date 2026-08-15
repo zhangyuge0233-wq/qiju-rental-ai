@@ -18,6 +18,6 @@ describe('production static hosting', () => {
     ]);
 
     expect(home.text).toContain('栖居生产前端');
-    expect(health.body).toEqual({ ok: true, aiConfigured: false, provider: 'wan2.7' });
+    expect(health.body).toEqual({ ok: true, aiConfigured: false, provider: 'minimax' });
   });
 });

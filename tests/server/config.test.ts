@@ -3,36 +3,24 @@ import { describe, expect, it } from 'vitest';
 import { createServerConfig, resolvePort } from '../../server/config.js';
 
 describe('createServerConfig', () => {
-  it('未提供 WAN 配置时使用空密钥和北京地域的默认值', () => {
+  it('未提供 MiniMax 配置时使用空密钥和默认值', () => {
     expect(createServerConfig({})).toEqual({
-      dashscopeApiKey: undefined,
-      wanApiUrl: 'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
-      wanModel: 'wan2.7-image-pro',
+      minimaxApiKey: undefined,
+      minimaxApiUrl: 'https://api.minimaxi.com/v1/image_generation',
+      minimaxModel: 'image-01',
       port: 3000,
     });
   });
 
-  it('修剪 DASHSCOPE_API_KEY、WAN_API_URL 与 WAN_MODEL 覆盖值', () => {
+  it('修剪 MINIMAX_API_KEY、MINIMAX_API_URL 与 MINIMAX_MODEL 覆盖值', () => {
     expect(createServerConfig({
-      DASHSCOPE_API_KEY: '  configured-key  ',
-      WAN_API_URL: '  https://example.test/wan  ',
-      WAN_MODEL: '  custom-wan-model  ',
+      MINIMAX_API_KEY: '  configured-key  ',
+      MINIMAX_API_URL: '  https://example.test/minimax  ',
+      MINIMAX_MODEL: '  image-fixture  ',
     })).toEqual({
-      dashscopeApiKey: 'configured-key',
-      wanApiUrl: 'https://example.test/wan',
-      wanModel: 'custom-wan-model',
-      port: 3000,
-    });
-  });
-
-  it('忽略遗留的 MiniMax 配置变量', () => {
-    expect(createServerConfig({
-      MINIMAX_API_KEY: 'legacy-key',
-      MINIMAX_API_URL: 'https://legacy.example.test',
-    })).toEqual({
-      dashscopeApiKey: undefined,
-      wanApiUrl: 'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
-      wanModel: 'wan2.7-image-pro',
+      minimaxApiKey: 'configured-key',
+      minimaxApiUrl: 'https://example.test/minimax',
+      minimaxModel: 'image-fixture',
       port: 3000,
     });
   });

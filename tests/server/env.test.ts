@@ -12,7 +12,7 @@ describe('project .env loading', () => {
     vi.restoreAllMocks();
   });
 
-  it('loads PORT and Wan settings from the selected project env file without logging values', () => {
+  it('loads PORT and MiniMax settings from the selected project env file without logging values', () => {
     // Removing the loader would leave the explicitly passed environment empty.
     const environment: Record<string, string | undefined> = {};
     const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
@@ -21,9 +21,9 @@ describe('project .env loading', () => {
 
     expect(environment).toEqual({
       PORT: '4312',
-      DASHSCOPE_API_KEY: 'fixture-key',
-      WAN_API_URL: 'https://example.test/wan',
-      WAN_MODEL: 'wan2.7-fixture',
+      MINIMAX_API_KEY: 'fixture-key',
+      MINIMAX_API_URL: 'https://example.test/minimax',
+      MINIMAX_MODEL: 'image-fixture',
     });
     expect(log).not.toHaveBeenCalled();
   });

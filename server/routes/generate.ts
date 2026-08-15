@@ -11,7 +11,7 @@ import {
   PRESERVE_STRUCTURE_CONSTRAINT,
   type GenerationProvider,
 } from '../providers/generation-provider.js';
-import { isValidWanInputImage } from '../input-image.js';
+import { isValidGenerationInputImage } from '../input-image.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -87,8 +87,8 @@ export const createGenerateRouter = (provider: GenerationProvider): Router => {
         && Boolean(roomImage)
         && (!presetStyle || presetStyles.has(presetStyle))
         && Boolean(presetStyle || referenceImage)
-        && Boolean(roomImage && isValidWanInputImage(roomImage.buffer, roomImage.mimetype))
-        && Boolean(!referenceImage || isValidWanInputImage(referenceImage.buffer, referenceImage.mimetype));
+        && Boolean(roomImage && isValidGenerationInputImage(roomImage.buffer, roomImage.mimetype))
+        && Boolean(!referenceImage || isValidGenerationInputImage(referenceImage.buffer, referenceImage.mimetype));
 
       if (!validInput || !roomImage) {
         response.status(400).json(failure('INVALID_INPUT'));
