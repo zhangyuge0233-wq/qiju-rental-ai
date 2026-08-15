@@ -1,6 +1,8 @@
 import { createApp } from './app.js';
 import { createServerConfig } from './config.js';
+import { loadProjectEnvironment } from './env.js';
 
+loadProjectEnvironment();
 const config = createServerConfig(process.env);
 const app = createApp(process.env);
 

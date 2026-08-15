@@ -43,4 +43,17 @@ npm run build
 npm run test:e2e
 ```
 
-`test:e2e` 使用真实本地 Vite、Express 和未配置的 MiniMax `503`，只覆盖错误提示、输入保留、空历史导航和移动端布局；不会 mock 出成功生成结果。Playwright 以无头模式调用本机已安装的 Chrome。
+`test:e2e` 使用真实本地 Vite、Express 和未配置的 MiniMax `503`，只覆盖错误提示、输入保留、空历史导航和移动端布局；不会 mock 出成功生成结果。Playwright 始终以无头模式运行。
+
+首次运行 E2E，请先安装默认的 Playwright Chromium：
+
+```bash
+npx playwright install chromium
+npm run test:e2e
+```
+
+默认配置使用 Playwright Chromium，适合标准 CI。若本机已安装 Chrome、但尚未下载 Playwright Chromium，可仅在本机临时指定通道：
+
+```bash
+PLAYWRIGHT_CHANNEL=chrome npm run test:e2e
+```

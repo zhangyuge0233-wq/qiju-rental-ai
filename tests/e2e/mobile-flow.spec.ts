@@ -7,12 +7,21 @@ test('未配置 MiniMax 时保留输入并展示真实错误', async ({ page }) 
   await page.goto('/');
   await page.setInputFiles('input[name="roomImage"]', 'tests/fixtures/room.jpg');
   await page.getByRole('button', { name: '奶油风' }).click();
+  const generationResponse = page.waitForResponse((response) => (
+    new URL(response.url()).pathname === '/api/generate'
+    && response.request().method() === 'POST'
+  ));
   await page.getByRole('button', { name: '生成我的房间' }).click();
 
+  expect((await generationResponse).status()).toBe(503);
   await expect(page.getByText('AI 服务尚未配置，请稍后再试')).toBeVisible();
   await expect(page.locator('img[alt="已上传的房间照片"]')).toBeVisible();
   await expect(page.getByRole('button', { name: '奶油风' })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('button', { name: '生成我的房间' })).toBeEnabled();
+  await expect.poll(() => page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    viewportWidth: window.innerWidth,
+  }))).toEqual({ scrollWidth: 390, viewportWidth: 390 });
 });
 
 test('首页可查看空历史并返回', async ({ page }) => {
