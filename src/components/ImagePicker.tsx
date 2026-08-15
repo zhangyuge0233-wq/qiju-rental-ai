@@ -78,7 +78,7 @@ export function ImagePicker({
       ) : defaultImageSrc ? (
         <figure>
           <img src={defaultImageSrc} alt={`默认${label}示例`} />
-          <figcaption>默认示例图，仅供参考</figcaption>
+          <figcaption>{`示例图，请上传${label}`}</figcaption>
         </figure>
       ) : (
         <p>暂未选择图片</p>

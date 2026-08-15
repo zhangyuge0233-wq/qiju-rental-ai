@@ -207,7 +207,6 @@ input:focus-visible {
   object-fit: cover;
 }
 
-.room-picker figcaption,
 .room-picker section > p {
   position: absolute;
   width: 1px;
@@ -219,37 +218,35 @@ input:focus-visible {
   border: 0;
 }
 
+.room-picker figcaption {
+  position: absolute;
+  z-index: 3;
+  top: 12px;
+  left: 12px;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: rgb(255 253 248 / 90%);
+  color: #5f5b55;
+  font-size: 9px;
+  line-height: 1;
+  backdrop-filter: blur(8px);
+}
+
 .room-picker button {
   position: absolute;
   z-index: 4;
   right: 13px;
   bottom: 13px;
-  width: 42px;
+  width: 84px;
   height: 42px;
-  overflow: hidden;
   border: 0;
-  border-radius: 50%;
+  border-radius: 16px;
   background: var(--color-coral);
-  color: transparent;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 650;
   box-shadow: 0 8px 18px rgb(255 96 49 / 34%);
   cursor: pointer;
-}
-
-.room-picker button::before,
-.room-picker button::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 16px;
-  height: 2px;
-  border-radius: 2px;
-  background: #fff;
-  transform: translate(-50%, -50%);
-}
-
-.room-picker button::after {
-  transform: translate(-50%, -50%) rotate(90deg);
 }
 
 .form-section,

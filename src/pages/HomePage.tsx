@@ -39,6 +39,7 @@ function Brand() {
 export function HomePage() {
   const generation = useGeneration();
   const [downloadError, setDownloadError] = useState<string>();
+  const [imageError, setImageError] = useState<string>();
   const roomUrl = useObjectUrl(generation.status === 'generating' || generation.status === 'result'
     ? generation.roomImage
     : undefined);
@@ -105,7 +106,9 @@ export function HomePage() {
           <p>{resultMeta} · 已保留原有墙面、门窗与地板</p>
         </section>
         <CompareSlider before={roomUrl} after={resultUrl} />
-        <div className="calm-note"><i aria-hidden="true" />已自动保存到历史记录</div>
+        {!generation.error && (
+          <div className="calm-note"><i aria-hidden="true" />已自动保存到历史记录</div>
+        )}
         {generation.error && <p className="inline-alert" role="alert">{generation.error}</p>}
         {downloadError && <p className="inline-alert" role="alert">{downloadError}</p>}
         <div className="result-actions" role="group" aria-label="效果图操作">
@@ -142,8 +145,11 @@ export function HomePage() {
           required
           value={generation.roomImage}
           defaultImageSrc="/assets/default-room.webp"
-          onChange={generation.setRoomImage}
-          onError={() => undefined}
+          onChange={(image) => {
+            setImageError(undefined);
+            generation.setRoomImage(image);
+          }}
+          onError={setImageError}
         />
       </div>
 
@@ -154,15 +160,20 @@ export function HomePage() {
           label="风格参考图"
           required={false}
           value={generation.referenceImage}
-          onChange={generation.setReferenceImage}
-          onError={() => undefined}
+          onChange={(image) => {
+            setImageError(undefined);
+            generation.setReferenceImage(image);
+          }}
+          onError={setImageError}
         />
       </div>
 
       {hasCombinedDirection && (
         <p className="direction-note">参考图将优先影响色彩、材质与氛围</p>
       )}
-      {generation.error && <p className="inline-alert" role="alert">{generation.error}</p>}
+      {(imageError || generation.error) && (
+        <p className="inline-alert" role="alert">{imageError || generation.error}</p>
+      )}
 
       <button
         className="button button--primary generate-button"

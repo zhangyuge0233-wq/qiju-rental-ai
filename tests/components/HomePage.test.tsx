@@ -87,6 +87,20 @@ describe('HomePage', () => {
     expect(screen.getByText('参考图将优先影响色彩、材质与氛围')).toBeTruthy();
   });
 
+  it('房间图片错误以中文警告显示且保留先前有效输入', async () => {
+    const user = userEvent.setup({ applyAccept: false });
+    mockedUseGeneration.mockReturnValue(controller({ roomImage }));
+
+    render(<HomePage />);
+    await user.upload(
+      screen.getByLabelText('房间照片图片选择'),
+      new File(['not-an-image'], 'room.txt', { type: 'text/plain' }),
+    );
+
+    expect(screen.getByRole('alert').textContent).toBe('仅支持 JPG、PNG 或 WebP 图片');
+    expect(screen.getByAltText('已选择的房间照片')).toBeTruthy();
+  });
+
   it('生成中显示循环状态且不虚构百分比', () => {
     mockedUseGeneration.mockReturnValue(controller({
       status: 'generating',
@@ -135,6 +149,22 @@ describe('HomePage', () => {
     expect(buttons[0].textContent).toContain('再次生成');
     expect(buttons[1].textContent).toContain('下载效果图');
     expect(buttons[1].classList.contains('button--primary')).toBe(true);
+  });
+
+  it('历史保存失败时只显示失败提示而不声称已保存', () => {
+    mockedUseGeneration.mockReturnValue(controller({
+      status: 'result',
+      roomImage,
+      resultImage,
+      presetStyle: '奶油风',
+      error: '效果图已生成，但未能保存到历史记录',
+    }));
+
+    render(<HomePage />);
+
+    expect(screen.getByRole('alert').textContent).toBe('效果图已生成，但未能保存到历史记录');
+    expect(screen.queryByText('已自动保存到历史记录')).toBeNull();
+    expect(screen.getByAltText('改造后的房间')).toBeTruthy();
   });
 
   it('下载失败时保留结果并显示中文提示', async () => {

@@ -36,6 +36,7 @@ describe('ImagePicker', () => {
     );
 
     expect(screen.getByAltText('默认参考图示例')).toBeTruthy();
+    expect(screen.getByText('示例图，请上传参考图')).toBeTruthy();
     expect(screen.getByText('选填')).toBeTruthy();
     expect(onChange).not.toHaveBeenCalled();
   });
