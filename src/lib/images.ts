@@ -4,6 +4,7 @@ export type ImageValidation =
 
 export interface ImageCompressionOptions {
   maxDimension?: number;
+  maxBytes?: number;
   quality?: number;
   mimeType?: 'image/jpeg' | 'image/png' | 'image/webp';
 }
@@ -16,6 +17,7 @@ const ACCEPTED_IMAGE_TYPES = new Set<AcceptedImageMimeType>([
   'image/webp',
 ]);
 const MAX_IMAGE_SIZE = 15 * 1024 * 1024;
+const MAX_UPLOAD_IMAGE_SIZE = 1.5 * 1024 * 1024;
 const IMAGE_PROCESSING_ERROR_MESSAGE = '图片无法解析，请更换后重试';
 
 export class ImageProcessingError extends Error {
@@ -143,9 +145,10 @@ export async function compressImage(
   file: File,
   options: ImageCompressionOptions = {},
 ): Promise<Blob> {
-  const maxDimension = options.maxDimension ?? 2048;
-  const quality = options.quality ?? 0.86;
-  const mimeType = options.mimeType ?? file.type;
+  const maxDimension = options.maxDimension ?? 1600;
+  const maxBytes = options.maxBytes ?? MAX_UPLOAD_IMAGE_SIZE;
+  const quality = options.quality ?? 0.82;
+  const mimeType = options.mimeType ?? 'image/webp';
   let decodedImage: DecodedImage | undefined;
   let canvas: HTMLCanvasElement | undefined;
 
@@ -164,11 +167,18 @@ export async function compressImage(
     }
 
     context.drawImage(decodedImage.source, 0, 0, width, height);
-    return await canvasBlob(
-      canvas,
-      mimeType,
-      mimeType === 'image/jpeg' || mimeType === 'image/webp' ? quality : undefined,
-    );
+    const qualitySteps = mimeType === 'image/jpeg' || mimeType === 'image/webp'
+      ? [quality, 0.68, 0.54, 0.4]
+      : [undefined];
+
+    for (const currentQuality of qualitySteps) {
+      const compressed = await canvasBlob(canvas, mimeType, currentQuality);
+      if (compressed.size <= maxBytes) {
+        return compressed;
+      }
+    }
+
+    throw new ImageProcessingError('图片压缩后仍过大，请选择较小图片');
   } catch (error) {
     if (error instanceof ImageProcessingError) {
       throw error;

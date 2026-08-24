@@ -141,16 +141,16 @@ describe('POST /api/generate', () => {
     expect(response.text).not.toContain('MulterError');
   });
 
-  it('接受大于 5 MB 且不超过 15 MB 的房间图', async () => {
-    const bytes = Buffer.alloc(5 * 1024 * 1024 + 1);
+  it('拒绝超过 1.5 MiB 的单张上传图，避免请求在 Vercel 边界被拦截', async () => {
+    const bytes = Buffer.alloc(1.5 * 1024 * 1024 + 1);
     jpegBytes.copy(bytes);
     const response = await attachRoom(
       request(createApp({})).post('/api/generate'),
       imageFile(bytes),
     ).field('presetStyle', '奶油风');
 
-    expect(response.status).toBe(503);
-    expect(response.body.code).toBe('AI_NOT_CONFIGURED');
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe('INVALID_INPUT');
   });
 
   it('超过 15 MB 时返回不含堆栈的 JSON 输入错误', async () => {
@@ -283,6 +283,17 @@ describe('POST /api/generate', () => {
       code: 'UPSTREAM_ERROR',
       message: 'AI 生成失败，请再次尝试',
     });
+  });
+
+  it('拒绝超过 3 MiB 的生成图，避免 Base64 JSON 超过 Vercel 响应限制', async () => {
+    const bytes = Buffer.alloc(3 * 1024 * 1024 + 1);
+    jpegBytes.copy(bytes);
+    const app = appWithProvider(async () => ({ bytes, mimeType: 'image/jpeg' }));
+    const response = await attachRoom(request(app).post('/api/generate'))
+      .field('presetStyle', '奶油风');
+
+    expect(response.status).toBe(502);
+    expect(response.body.code).toBe('UPSTREAM_ERROR');
   });
 
   it.each([

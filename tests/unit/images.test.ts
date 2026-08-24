@@ -37,12 +37,17 @@ describe('validateImage', () => {
 });
 
 describe('compressImage', () => {
-  it('压缩超长 JPEG 并释放位图和画布资源', async () => {
+  it('默认转为 WebP，并在首次结果过大时降低质量以适配部署上传限制', async () => {
     const close = vi.fn();
     const drawImage = vi.fn();
+    const oversized = new Blob([new Uint8Array(1.5 * 1024 * 1024 + 1)], {
+      type: 'image/webp',
+    });
+    const compressed = new Blob(['compressed'], { type: 'image/webp' });
     const toBlob = vi
       .spyOn(HTMLCanvasElement.prototype, 'toBlob')
-      .mockImplementation((callback) => callback(new Blob(['compressed'], { type: 'image/jpeg' })));
+      .mockImplementationOnce((callback) => callback(oversized))
+      .mockImplementationOnce((callback) => callback(compressed));
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage } as never);
     vi.stubGlobal(
       'createImageBitmap',
@@ -52,9 +57,11 @@ describe('compressImage', () => {
 
     const result = await compressImage(file);
 
-    expect(result.type).toBe('image/jpeg');
-    expect(drawImage).toHaveBeenCalledWith(expect.anything(), 0, 0, 2048, 1024);
-    expect(toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/jpeg', 0.86);
+    expect(result).toBe(compressed);
+    expect(result.type).toBe('image/webp');
+    expect(drawImage).toHaveBeenCalledWith(expect.anything(), 0, 0, 1600, 800);
+    expect(toBlob).toHaveBeenNthCalledWith(1, expect.any(Function), 'image/webp', 0.82);
+    expect(toBlob).toHaveBeenNthCalledWith(2, expect.any(Function), 'image/webp', 0.68);
     expect(close).toHaveBeenCalledTimes(1);
   });
 

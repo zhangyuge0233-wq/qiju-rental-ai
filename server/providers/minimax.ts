@@ -8,8 +8,8 @@ import {
 } from './generation-provider.js';
 
 const requestTimeoutMs = 120_000;
-const maxUpstreamResponseBytes = 25 * 1024 * 1024;
-const maxGeneratedImageBytes = 25 * 1024 * 1024;
+const maxUpstreamResponseBytes = 4.25 * 1024 * 1024;
+const maxGeneratedImageBytes = 3 * 1024 * 1024;
 
 const buildPrompt = (input: GenerationInput) => [
   `生成一张${input.presetStyle ?? '温馨实用'}的年轻人出租屋室内设计效果图。`,

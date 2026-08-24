@@ -169,6 +169,16 @@ describe('createMiniMaxProvider', () => {
     await expectUpstreamError(createMiniMaxProvider(config, fetchImpl).generate(input()));
   });
 
+  it('rejects a decoded image larger than 3 MiB before it reaches the Vercel response boundary', async () => {
+    const oversizedImage = Buffer.alloc(3 * 1024 * 1024 + 1);
+    jpegBytes.copy(oversizedImage);
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      successResponse(oversizedImage.toString('base64')),
+    );
+
+    await expectUpstreamError(createMiniMaxProvider(config, fetchImpl).generate(input()));
+  });
+
   it('maps a direct network rejection to a generic error without private details', async () => {
     const privateDetails = [
       config.minimaxApiKey,
@@ -192,10 +202,10 @@ describe('createMiniMaxProvider', () => {
     );
   });
 
-  it('rejects an upstream response declaring more than 25 MiB and cancels its body', async () => {
+  it('rejects an upstream response declaring more than 4.25 MiB and cancels its body', async () => {
     const { response, cancel } = streamedResponse(
       [new TextEncoder().encode('{"private":"upstream response"}')],
-      { 'Content-Length': String(25 * 1024 * 1024 + 1) },
+      { 'Content-Length': String(4.25 * 1024 * 1024 + 1) },
     );
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(response);
 
@@ -203,9 +213,9 @@ describe('createMiniMaxProvider', () => {
     expect(cancel).toHaveBeenCalledOnce();
   });
 
-  it('rejects a streamed upstream response exceeding 25 MiB and cancels its body', async () => {
+  it('rejects a streamed upstream response exceeding 4.25 MiB and cancels its body', async () => {
     const { response, cancel } = streamedResponse([
-      new Uint8Array(25 * 1024 * 1024),
+      new Uint8Array(4.25 * 1024 * 1024),
       new Uint8Array([123]),
     ], {}, false);
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(response);

@@ -13,10 +13,13 @@ import {
 } from '../providers/generation-provider.js';
 import { isValidGenerationInputImage } from '../input-image.js';
 
+const maxUploadImageBytes = 1.5 * 1024 * 1024;
+const maxGeneratedImageBytes = 3 * 1024 * 1024;
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 15 * 1024 * 1024,
+    fileSize: maxUploadImageBytes,
     files: 2,
     fields: 1,
     parts: 3,
@@ -105,7 +108,9 @@ export const createGenerateRouter = (provider: GenerationProvider): Router => {
           constraint: PRESERVE_STRUCTURE_CONSTRAINT,
         });
 
-        if (!image.bytes.length || !generatedImageMimeTypes.has(image.mimeType)) {
+        if (!image.bytes.length
+          || image.bytes.length > maxGeneratedImageBytes
+          || !generatedImageMimeTypes.has(image.mimeType)) {
           throw new GenerationProviderError('UPSTREAM_ERROR');
         }
 
