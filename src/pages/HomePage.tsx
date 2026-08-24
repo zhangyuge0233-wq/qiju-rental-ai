@@ -69,7 +69,7 @@ function HomePageContent({ generation, onOpenHistory }: HomePageContentProps) {
     : undefined);
   const resultUrl = useObjectUrl(generation.status === 'result' ? generation.resultImage : undefined);
   const hasDirection = Boolean(generation.presetStyle || generation.referenceImage);
-  const canGenerate = Boolean(generation.roomImage && hasDirection);
+  const canGenerate = Boolean(generation.roomImage && hasDirection && generation.remainingGenerations > 0);
   const hasCombinedDirection = Boolean(generation.presetStyle && generation.referenceImage);
 
   const handleDownload = () => {
@@ -203,13 +203,18 @@ function HomePageContent({ generation, onOpenHistory }: HomePageContentProps) {
         <p className="inline-alert" role="alert">{imageError || generation.error}</p>
       )}
 
+      <p className="generation-quota" aria-live="polite">
+        {generation.remainingGenerations > 0
+          ? `本设备剩余 ${generation.remainingGenerations} 次免费生成`
+          : '本设备的免费次数已用完'}
+      </p>
       <button
         className="button button--primary generate-button"
         type="button"
         disabled={!canGenerate}
         onClick={() => void generation.generate()}
       >
-        生成我的房间
+        {generation.remainingGenerations > 0 ? '生成我的房间' : '免费次数已用完'}
       </button>
     </main>
   );

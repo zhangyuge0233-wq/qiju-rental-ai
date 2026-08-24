@@ -40,6 +40,7 @@ function historyRecord(
 function controller(overrides: Partial<GenerationController> = {}): GenerationController {
   return {
     status: 'editing',
+    remainingGenerations: 3,
     setRoomImage: vi.fn(),
     setReferenceImage: vi.fn(),
     setPresetStyle: vi.fn(),

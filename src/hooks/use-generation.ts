@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { generationErrorMessage } from '../../shared/generation';
+import {
+  getGenerationUsage,
+  recordSuccessfulGeneration,
+} from '../lib/generation-limit';
 import { saveHistoryRecord, type HistoryRecord } from '../lib/history-db';
 import { GenerationApiError, generateRoom } from '../services/generation-api';
 
@@ -8,6 +12,7 @@ type GenerationStatus = 'editing' | 'generating' | 'result' | 'error';
 
 export interface GenerationController {
   status: GenerationStatus;
+  remainingGenerations: number;
   roomImage?: Blob;
   referenceImage?: Blob;
   presetStyle?: string;
@@ -38,6 +43,9 @@ function createHistoryId(): string {
 
 export function useGeneration(): GenerationController {
   const [state, setState] = useState<GenerationState>(initialState);
+  const [remainingGenerations, setRemainingGenerations] = useState(
+    () => getGenerationUsage().remaining,
+  );
   const stateRef = useRef(state);
   const generationInFlightRef = useRef(false);
   const mountedRef = useRef(true);
@@ -117,6 +125,11 @@ export function useGeneration(): GenerationController {
       return;
     }
 
+    if (remainingGenerations <= 0) {
+      replaceState({ ...input, status: 'error', error: '本设备的 3 次免费生成已用完' });
+      return;
+    }
+
     const version = generationVersionRef.current + 1;
     const abortController = new AbortController();
     generationVersionRef.current = version;
@@ -142,6 +155,7 @@ export function useGeneration(): GenerationController {
         resultImage,
       };
       replaceState(completedState);
+      setRemainingGenerations(recordSuccessfulGeneration().remaining);
 
       const record: HistoryRecord = {
         id: createHistoryId(),
@@ -184,7 +198,7 @@ export function useGeneration(): GenerationController {
         activeAbortControllerRef.current = undefined;
       }
     }
-  }, [isCurrentGeneration, replaceState]);
+  }, [isCurrentGeneration, remainingGenerations, replaceState]);
 
   const resetToEditing = useCallback(() => {
     invalidateActiveGeneration();
@@ -209,6 +223,7 @@ export function useGeneration(): GenerationController {
 
   return {
     ...state,
+    remainingGenerations,
     setRoomImage,
     setReferenceImage,
     setPresetStyle,

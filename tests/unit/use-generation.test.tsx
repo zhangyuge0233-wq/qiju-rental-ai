@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 
 import { act, renderHook } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { generationErrorMessage } from '../../shared/generation';
 import type { HistoryRecord } from '../../src/lib/history-db';
@@ -29,7 +29,38 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+beforeEach(() => {
+  const values = new Map<string, string>();
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: {
+      clear: () => values.clear(),
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+    },
+  });
+});
+
 describe('useGeneration', () => {
+  it('starts with three free generations and consumes one only after success', async () => {
+    mockedGenerateRoom.mockResolvedValue(resultBlob);
+    mockedSaveHistoryRecord.mockResolvedValue(undefined);
+    const { result } = renderHook(() => useGeneration());
+
+    expect(result.current.remainingGenerations).toBe(3);
+    act(() => {
+      result.current.setRoomImage(roomBlob);
+      result.current.setPresetStyle('奶油风');
+    });
+
+    await act(async () => result.current.generate());
+    expect(result.current.remainingGenerations).toBe(2);
+
+    act(() => result.current.resetToEditing());
+    await act(async () => result.current.generate());
+    expect(result.current.remainingGenerations).toBe(1);
+  });
+
   it('接口失败后保留输入并进入 error 状态', async () => {
     // Clearing the form on a rejected API call would force users to upload again.
     mockedGenerateRoom.mockRejectedValue(new GenerationApiError(
@@ -50,6 +81,21 @@ describe('useGeneration', () => {
     expect(result.current.referenceImage).toBe(referenceBlob);
     expect(result.current.presetStyle).toBe('奶油风');
     expect(result.current.error).toBe('AI 服务尚未配置，请稍后再试');
+    expect(result.current.remainingGenerations).toBe(3);
+  });
+
+  it('when the browser has no free generations, does not call the AI service', async () => {
+    window.localStorage.setItem('qiju-generation-usage', JSON.stringify({ used: 3 }));
+    const { result } = renderHook(() => useGeneration());
+    act(() => {
+      result.current.setRoomImage(roomBlob);
+      result.current.setPresetStyle('奶油风');
+    });
+
+    await act(async () => result.current.generate());
+
+    expect(mockedGenerateRoom).not.toHaveBeenCalled();
+    expect(result.current.error).toBe('本设备的 3 次免费生成已用完');
   });
 
   it('成功后只保存一次完整历史且生成中不重复提交', async () => {

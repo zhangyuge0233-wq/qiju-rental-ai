@@ -422,6 +422,14 @@ input:focus-visible {
   height: 57px;
 }
 
+.generation-quota {
+  margin: -2px 0 10px;
+  color: #817a72;
+  font-size: 10px;
+  line-height: 1.4;
+  text-align: center;
+}
+
 .app-shell--focus .brand-bar {
   margin-bottom: 38px;
 }

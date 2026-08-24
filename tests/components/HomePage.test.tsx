@@ -26,6 +26,7 @@ function controller(
 ): GenerationController {
   return {
     status: 'editing',
+    remainingGenerations: 3,
     setRoomImage: vi.fn(),
     setReferenceImage: vi.fn(),
     setPresetStyle: vi.fn(),
@@ -51,6 +52,25 @@ afterEach(() => {
 });
 
 describe('HomePage', () => {
+  it('shows remaining free generations', () => {
+    render(<HomePage />);
+
+    expect(screen.getByText('本设备剩余 3 次免费生成')).toBeTruthy();
+  });
+
+  it('when free generations are exhausted, disables generation', () => {
+    mockedUseGeneration.mockReturnValue(controller({
+      roomImage,
+      presetStyle: '奶油风',
+      remainingGenerations: 0,
+    }));
+
+    render(<HomePage />);
+
+    expect(screen.getByText('本设备的免费次数已用完')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '免费次数已用完' }).hasAttribute('disabled')).toBe(true);
+  });
+
   it('历史入口只出现一次并位于首页品牌栏右侧', async () => {
     const user = userEvent.setup();
     const onOpenHistory = vi.fn();
